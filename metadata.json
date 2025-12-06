@@ -1,0 +1,5 @@
+{
+  "name": "المُلخص الدراسي الذكي (Smart Study AI)",
+  "description": "تطبيق ذكي لتحليل الكتب الدراسية، تلخيص المناهج، واستخراج الأسئلة باستخدام Gemini 2.5.",
+  "requestFramePermissions": []
+}
