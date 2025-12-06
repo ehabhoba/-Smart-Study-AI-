@@ -124,23 +124,26 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
           
           /* --- Q&A Theme (Indigo & Teal) --- */
           .tab-qa h3 { 
-            background-color: #ffffff; 
+            background-color: #f8fafc; /* Slight grey background */
             padding: 15px; 
             border: 1px solid #e2e8f0; 
             border-right: 6px solid #4f46e5; /* Indigo */
             color: #312e81; 
             border-radius: 6px; 
             margin-top: 30px;
+            margin-bottom: 10px;
+            font-weight: 700;
           }
           
           .tab-qa blockquote { 
             background-color: #f0fdfa; 
             border: 1px solid #ccfbf1;
             border-right: 6px solid #14b8a6; /* Teal */
-            color: #134e4a; 
+            color: #115e59; 
             padding: 15px; 
-            margin: 5px 0 20px 0; 
+            margin: 0 0 25px 0; 
             border-radius: 6px;
+            font-weight: 500;
           }
 
           /* Tables */
