@@ -5,6 +5,7 @@ import { StudyAnalysisResult } from '../types';
 import { FileText, List, HelpCircle, Volume2, Search, Copy, Check, Download } from 'lucide-react';
 import { generateSpeech } from '../services/geminiService';
 import { playAudioFromBase64 } from '../services/audioService';
+import { marked } from 'marked';
 
 interface Props {
   result: StudyAnalysisResult;
@@ -46,39 +47,123 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownloadWord = () => {
-    // Get the HTML content of the markdown container
-    const element = document.getElementById('markdown-content');
-    if (!element) return;
+  const handleDownloadWord = async () => {
+    // Generate HTML for each section using marked
+    const overviewHtml = await marked.parse(result.overview);
+    const summaryHtml = await marked.parse(result.summary);
+    const qaHtml = await marked.parse(result.qa);
 
-    // Create a complete HTML document structure with RTL support and improved table styling for Word
+    // Combine all sections into one document body with distinct styling containers
+    const combinedContent = `
+      <div class="section tab-overview">
+        <h1 style="color: #0f172a; border-bottom: 2px solid #64748b;">نظرة عامة على الكتاب</h1>
+        ${overviewHtml}
+      </div>
+      
+      <br style="page-break-before: always;" />
+      
+      <div class="section tab-summary">
+        <h1 style="color: #0c4a6e; border-bottom: 2px solid #0284c7;">الملخص الشامل</h1>
+        ${summaryHtml}
+      </div>
+      
+      <br style="page-break-before: always;" />
+      
+      <div class="section tab-qa">
+        <h1 style="color: #312e81; border-bottom: 2px solid #4f46e5;">بنك الأسئلة المتوقعة</h1>
+        ${qaHtml}
+      </div>
+    `;
+
+    // Word Document Template with inline CSS matching the web view
     const content = `
       <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
       <head>
         <meta charset='utf-8'>
-        <title>Smart Study Summary</title>
+        <title>Smart Study Complete Report</title>
         <style>
-          body { font-family: 'Cairo', 'Arial', sans-serif; direction: rtl; text-align: right; line-height: 1.6; }
+          body { font-family: 'Cairo', 'Arial', sans-serif; direction: rtl; text-align: right; line-height: 1.6; color: #374151; }
           
-          /* Headers */
-          h1 { color: #1e3a8a; font-size: 24pt; margin-bottom: 20px; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; }
-          h2 { color: #1e40af; font-size: 18pt; margin-top: 20px; margin-bottom: 15px; }
-          h3 { color: #2563eb; font-size: 14pt; margin-top: 15px; }
+          /* Common Headers */
+          h1 { font-size: 24pt; margin-bottom: 20px; font-weight: 800; padding-bottom: 10px; margin-top: 30px; }
+          h2 { font-size: 18pt; margin-top: 24px; font-weight: 700; }
+          h3 { font-size: 14pt; margin-top: 18px; font-weight: 600; }
           
+          /* --- Overview Theme (Slate) --- */
+          .tab-overview h2 {
+            color: #0f172a;
+            border-right: 5px solid #64748b;
+            padding-right: 10px;
+          }
+
+          /* --- Summary Theme (Blue & Amber) --- */
+          .tab-summary h2 {
+            background: #f0f9ff;
+            border-right: 5px solid #0284c7;
+            color: #0c4a6e;
+            padding: 10px;
+            border-radius: 4px;
+          }
+          
+          .tab-summary h3 {
+            color: #0369a1;
+            border-bottom: 1px dashed #e0f2fe;
+            padding-bottom: 4px;
+            display: inline-block;
+          }
+
+          .tab-summary blockquote { 
+            background-color: #fffbeb; 
+            border: 1px solid #fcd34d;
+            border-right: 5px solid #f59e0b; 
+            color: #92400e; 
+            padding: 12px; 
+            margin: 15px 0; 
+            border-radius: 4px;
+          }
+          
+          /* --- Q&A Theme (Indigo & Teal) --- */
+          .tab-qa h3 { 
+            background-color: #ffffff; 
+            padding: 15px; 
+            border: 1px solid #e2e8f0; 
+            border-right: 6px solid #4f46e5; /* Indigo */
+            color: #312e81; 
+            border-radius: 6px; 
+            margin-top: 30px;
+          }
+          
+          .tab-qa blockquote { 
+            background-color: #f0fdfa; 
+            border: 1px solid #ccfbf1;
+            border-right: 6px solid #14b8a6; /* Teal */
+            color: #134e4a; 
+            padding: 15px; 
+            margin: 5px 0 20px 0; 
+            border-radius: 6px;
+          }
+
           /* Tables */
-          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #d1d5db; }
-          th { background-color: #f3f4f6; color: #111827; font-weight: bold; border: 1px solid #9ca3af; padding: 10px; }
-          td { border: 1px solid #d1d5db; padding: 8px; vertical-align: top; }
-          tr:nth-child(even) { background-color: #f9fafb; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #cbd5e1; }
+          thead { background-color: #1e40af; color: white; }
+          th { padding: 10px; border: 1px solid #94a3b8; color: white; }
+          td { border: 1px solid #cbd5e1; padding: 8px; vertical-align: top; background-color: #fff; }
+          tr:nth-child(even) td { background-color: #f8fafc; }
           
-          /* Other elements */
-          blockquote { border-right: 5px solid #2563eb; padding: 10px; background: #eff6ff; margin: 15px 0; color: #1e40af; }
-          p { margin-bottom: 10px; }
-          ul, ol { margin-bottom: 15px; margin-right: 20px; }
+          /* Lists */
+          ul, ol { margin-bottom: 15px; margin-right: 25px; }
+          li { margin-bottom: 6px; }
+          
+          /* General */
+          p { margin-bottom: 12px; }
+          strong { color: #111827; font-weight: bold; }
+          
+          /* Helper for sections */
+          .section { margin-bottom: 30px; }
         </style>
       </head>
       <body>
-        ${element.innerHTML}
+        ${combinedContent}
       </body>
       </html>
     `;
@@ -90,7 +175,7 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `SmartStudy_${activeTab}_${new Date().toISOString().slice(0,10)}.doc`;
+    link.download = `SmartStudy_Complete_Report_${new Date().toISOString().slice(0,10)}.doc`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -132,11 +217,11 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
         <div className="flex gap-2 flex-wrap">
             <button 
                 onClick={handleDownloadWord}
-                className="flex items-center gap-1 text-sm bg-green-100 hover:bg-green-200 text-green-800 px-3 py-1.5 rounded border border-green-200 transition"
-                title="تحميل كملف Word"
+                className="flex items-center gap-1 text-sm bg-green-100 hover:bg-green-200 text-green-800 px-3 py-1.5 rounded border border-green-200 transition font-semibold"
+                title="تحميل التقرير الكامل كملف Word"
             >
                 <Download size={16} />
-                تحميل Word
+                تحميل الملف الكامل (Word)
             </button>
             <button 
                 onClick={handleReadAloud}
@@ -165,7 +250,8 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
 
       {/* Content */}
       <div className="p-8 bg-white overflow-y-auto max-h-[800px] leading-relaxed flex-grow">
-        <article id="markdown-content" className="prose prose-blue max-w-none prose-headings:font-bold prose-headings:text-blue-900 prose-p:text-gray-700 prose-li:text-gray-700 markdown-body">
+        {/* Dynamic Class based on active tab for scoped CSS in index.html */}
+        <article id="markdown-content" className={`prose prose-blue max-w-none prose-headings:font-bold prose-headings:text-blue-900 prose-p:text-gray-700 prose-li:text-gray-700 markdown-body tab-${activeTab}`}>
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {getActiveContent()}
             </ReactMarkdown>
