@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { StudyAnalysisResult } from '../types';
-import { FileText, List, HelpCircle, Volume2, Search, Copy, Check, Download } from 'lucide-react';
+import { FileText, List, HelpCircle, Volume2, Search, Copy, Check, Download, Loader2 } from 'lucide-react';
 import { generateSpeech } from '../services/geminiService';
 import { playAudioFromBase64 } from '../services/audioService';
 import { marked } from 'marked';
@@ -13,10 +13,21 @@ interface Props {
   onOpenDeepDive: () => void;
 }
 
+type AudioState = 'idle' | 'generating' | 'playing';
+
+const VOICES = [
+  { id: 'Zephyr', label: 'Zephyr (أنثى - هادئ)', gender: 'Female' },
+  { id: 'Puck', label: 'Puck (ذكر - حيوي)', gender: 'Male' },
+  { id: 'Kore', label: 'Kore (أنثى - دافئ)', gender: 'Female' },
+  { id: 'Fenrir', label: 'Fenrir (ذكر - عميق)', gender: 'Male' },
+  { id: 'Charon', label: 'Charon (ذكر - جاد)', gender: 'Male' },
+];
+
 export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'summary' | 'qa'>('summary');
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioState, setAudioState] = useState<AudioState>('idle');
   const [copied, setCopied] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState('Zephyr');
 
   const getActiveContent = () => {
     switch (activeTab) {
@@ -28,16 +39,25 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
   };
 
   const handleReadAloud = async () => {
-    if (isPlaying) return;
-    setIsPlaying(true);
+    if (audioState !== 'idle') return; // Prevent multiple clicks
+    
+    const textToRead = getActiveContent();
+    if (!textToRead) {
+      alert("لا يوجد محتوى للقراءة.");
+      return;
+    }
+
     try {
-      const audioData = await generateSpeech(apiKey, getActiveContent());
+      setAudioState('generating');
+      const audioData = await generateSpeech(apiKey, textToRead, selectedVoice);
+      
+      setAudioState('playing');
       await playAudioFromBase64(audioData);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("فشل في تشغيل الصوت. تحقق من اتصالك أو المفتاح.");
+      alert(e.message || "فشل في توليد أو تشغيل الصوت. تحقق من اتصالك أو المفتاح.");
     } finally {
-      setIsPlaying(false);
+      setAudioState('idle');
     }
   };
 
@@ -47,11 +67,11 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownloadWord = async () => {
-    // Generate HTML for each section using marked
-    const overviewHtml = await marked.parse(result.overview);
-    const summaryHtml = await marked.parse(result.summary);
-    const qaHtml = await marked.parse(result.qa);
+  const handleDownloadWord = () => {
+    // Generate HTML for each section using marked (synchronous)
+    const overviewHtml = marked.parse(result.overview) as string;
+    const summaryHtml = marked.parse(result.summary) as string;
+    const qaHtml = marked.parse(result.qa) as string;
 
     // Combine all sections into one document body with distinct styling containers
     const combinedContent = `
@@ -70,7 +90,7 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
       <br style="page-break-before: always;" />
       
       <div class="section tab-qa">
-        <h1 style="color: #312e81; border-bottom: 2px solid #4f46e5;">بنك الأسئلة المتوقعة</h1>
+        <h1 style="color: #312e81; border-bottom: 2px solid #4338ca;">بنك الأسئلة المتوقعة</h1>
         ${qaHtml}
       </div>
     `;
@@ -82,7 +102,7 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
         <meta charset='utf-8'>
         <title>Smart Study Complete Report</title>
         <style>
-          body { font-family: 'Cairo', 'Arial', sans-serif; direction: rtl; text-align: right; line-height: 1.6; color: #374151; }
+          body { font-family: 'Cairo', 'Segoe UI', 'Arial', sans-serif; direction: rtl; text-align: right; line-height: 1.6; color: #374151; }
           
           /* Common Headers */
           h1 { font-size: 24pt; margin-bottom: 20px; font-weight: 800; padding-bottom: 10px; margin-top: 30px; }
@@ -122,28 +142,30 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
             border-radius: 4px;
           }
           
-          /* --- Q&A Theme (Indigo & Teal) --- */
+          /* --- Q&A Theme (Indigo & Green) --- */
           .tab-qa h3 { 
-            background-color: #f8fafc; /* Slight grey background */
+            background-color: #eef2ff; 
             padding: 15px; 
-            border: 1px solid #e2e8f0; 
-            border-right: 6px solid #4f46e5; /* Indigo */
+            border: 1px solid #c7d2fe; 
+            border-right: 6px solid #4f46e5; 
             color: #312e81; 
             border-radius: 6px; 
             margin-top: 30px;
             margin-bottom: 10px;
             font-weight: 700;
+            font-size: 14pt;
           }
           
           .tab-qa blockquote { 
-            background-color: #f0fdfa; 
-            border: 1px solid #ccfbf1;
-            border-right: 6px solid #14b8a6; /* Teal */
-            color: #115e59; 
+            background-color: #f0fdf4; 
+            border: 1px solid #bbf7d0;
+            border-right: 6px solid #16a34a; 
+            color: #14532d; 
             padding: 15px; 
             margin: 0 0 25px 0; 
             border-radius: 6px;
             font-weight: 500;
+            font-size: 12pt;
           }
 
           /* Tables */
@@ -161,8 +183,11 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
           p { margin-bottom: 12px; }
           strong { color: #111827; font-weight: bold; }
           
-          /* Helper for sections */
+          /* Page Breaks & Printing */
           .section { margin-bottom: 30px; }
+          .tab-qa h3, .tab-qa blockquote, .tab-summary blockquote, table, tr {
+            page-break-inside: avoid;
+          }
         </style>
       </head>
       <body>
@@ -199,67 +224,97 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
     </button>
   );
 
+  const getAudioButtonContent = () => {
+    switch (audioState) {
+      case 'generating':
+        return (
+          <>
+            <Loader2 size={18} className="animate-spin" />
+            جاري التوليد...
+          </>
+        );
+      case 'playing':
+        return (
+          <>
+            <Volume2 size={18} className="animate-pulse text-green-300" />
+            جاري القراءة...
+          </>
+        );
+      default:
+        return (
+          <>
+            <Volume2 size={18} />
+            قراءة (TTS)
+          </>
+        );
+    }
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden min-h-[500px] flex flex-col">
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200 bg-gray-50 flex-wrap">
-        <TabButton id="overview" label="نظرة عامة" icon={FileText} />
-        <TabButton id="summary" label="الملخص الشامل" icon={List} />
-        <TabButton id="qa" label="بنك الأسئلة" icon={HelpCircle} />
-      </div>
+    <div className="animate-fade-in-up">
+       {/* Tab Navigation */}
+       <div className="flex border-b border-gray-200 mb-0 bg-white rounded-t-xl overflow-hidden shadow-sm">
+         <TabButton id="summary" label="الملخص" icon={FileText} />
+         <TabButton id="qa" label="الأسئلة" icon={HelpCircle} />
+         <TabButton id="overview" label="نظرة عامة" icon={List} />
+       </div>
 
-      {/* Toolbar */}
-      <div className="bg-gray-50 px-6 py-3 border-b border-gray-200 flex flex-wrap justify-between items-center gap-3">
-        <div className="flex gap-2">
-            <h3 className="font-bold text-gray-700 hidden md:block">
-                {activeTab === 'overview' && 'تحليل الكتاب'}
-                {activeTab === 'summary' && 'ملخص المنهج'}
-                {activeTab === 'qa' && 'الأسئلة المتوقعة'}
-            </h3>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-            <button 
-                onClick={handleDownloadWord}
-                className="flex items-center gap-1 text-sm bg-green-100 hover:bg-green-200 text-green-800 px-3 py-1.5 rounded border border-green-200 transition font-semibold"
-                title="تحميل التقرير الكامل كملف Word"
-            >
-                <Download size={16} />
-                تحميل الملف الكامل (Word)
+       {/* Toolbar */}
+       <div className="bg-gray-50 p-3 border-x border-gray-200 flex flex-wrap gap-2 justify-between items-center">
+         <div className="flex gap-2">
+            <button onClick={handleCopy} className="btn-secondary text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 flex items-center gap-2 transition">
+              {copied ? <Check size={16} className="text-green-600" /> : <Copy size={16} className="text-gray-500" />}
+              {copied ? "تم النسخ" : "نسخ"}
             </button>
-            <button 
-                onClick={handleReadAloud}
-                disabled={isPlaying}
-                className="flex items-center gap-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1.5 rounded border border-blue-200 transition disabled:opacity-50"
-            >
-                <Volume2 size={16} />
-                {isPlaying ? '...' : 'قراءة'}
+            <button onClick={handleDownloadWord} className="btn-secondary text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 flex items-center gap-2 transition text-blue-700">
+               <Download size={16} />
+               تحميل Word
             </button>
-            <button 
-                onClick={onOpenDeepDive}
-                className="flex items-center gap-1 text-sm bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1.5 rounded border border-purple-200 transition"
-            >
-                <Search size={16} />
-                شرح
-            </button>
-            <button 
-                onClick={handleCopy}
-                className="flex items-center gap-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded border border-gray-200 transition"
-            >
-                {copied ? <Check size={16} className="text-green-600" /> : <Copy size={16} />}
-                {copied ? 'تم' : 'نسخ'}
-            </button>
-        </div>
-      </div>
+         </div>
+         
+         <div className="flex gap-2 items-center">
+             <button onClick={onOpenDeepDive} className="text-sm py-1.5 px-3 bg-purple-50 border border-purple-200 text-purple-700 rounded hover:bg-purple-100 flex items-center gap-2 transition">
+               <Search size={16} />
+               شرح (Deep Dive)
+             </button>
+             
+             {/* Voice Selection */}
+             <select 
+               value={selectedVoice} 
+               onChange={(e) => setSelectedVoice(e.target.value)}
+               className="text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 outline-none transition cursor-pointer"
+               disabled={audioState !== 'idle'}
+               title="اختر الصوت"
+             >
+               {VOICES.map(v => (
+                 <option key={v.id} value={v.id}>{v.label}</option>
+               ))}
+             </select>
 
-      {/* Content */}
-      <div className="p-8 bg-white overflow-y-auto max-h-[800px] leading-relaxed flex-grow">
-        {/* Dynamic Class based on active tab for scoped CSS in index.html */}
-        <article id="markdown-content" className={`prose prose-blue max-w-none prose-headings:font-bold prose-headings:text-blue-900 prose-p:text-gray-700 prose-li:text-gray-700 markdown-body tab-${activeTab}`}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {getActiveContent()}
-            </ReactMarkdown>
-        </article>
-      </div>
+             <button 
+               onClick={handleReadAloud} 
+               disabled={audioState !== 'idle'}
+               className="text-sm py-1.5 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2 transition shadow-sm min-w-[140px] justify-center disabled:opacity-70"
+             >
+               {getAudioButtonContent()}
+             </button>
+         </div>
+       </div>
+
+       {/* Content */}
+       <div className="bg-white p-6 md:p-10 rounded-b-xl border border-gray-200 shadow-sm min-h-[400px]">
+          <div className={`markdown-body tab-${activeTab}`}>
+            {getActiveContent() ? (
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {getActiveContent()}
+              </ReactMarkdown>
+            ) : (
+              <div className="text-center text-gray-400 py-20">
+                <p>لا يوجد محتوى لعرضه في هذا القسم.</p>
+              </div>
+            )}
+          </div>
+       </div>
     </div>
   );
 };

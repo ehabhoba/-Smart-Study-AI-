@@ -99,7 +99,7 @@ export const explainConcept = async (apiKey: string, term: string, context: stri
   return response.text || "عذراً، لم أتمكن من توليد الشرح.";
 };
 
-export const generateSpeech = async (apiKey: string, text: string): Promise<string> => {
+export const generateSpeech = async (apiKey: string, text: string, voiceName: string = 'Zephyr'): Promise<string> => {
     const ai = new GoogleGenAI({ apiKey });
 
     // Truncate text if too long for a single TTS request (approx limit)
@@ -112,7 +112,7 @@ export const generateSpeech = async (apiKey: string, text: string): Promise<stri
             responseModalities: [Modality.AUDIO],
             speechConfig: {
                 voiceConfig: {
-                    prebuiltVoiceConfig: { voiceName: 'Zephyr' } // Or 'Kore', 'Fenrir'
+                    prebuiltVoiceConfig: { voiceName: voiceName }
                 }
             }
         }

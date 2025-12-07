@@ -6,14 +6,15 @@ import { ProcessingArea } from './components/ProcessingArea';
 import { ResultsDisplay } from './components/ResultsDisplay';
 import { DeepDivePanel } from './components/DeepDivePanel';
 import { extractTextFromPDF } from './services/pdfService';
+import { extractTextFromPPTX } from './services/pptxService';
 import { analyzeText, explainConcept } from './services/geminiService';
 import { StudyAnalysisResult, SummaryType, ProcessingStatus } from './types';
-import { BookOpen, AlertCircle } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 
 const App: React.FC = () => {
   // State
   const [apiKey, setApiKey] = useState<string>('');
-  const [pdfText, setPdfText] = useState<string>('');
+  const [sourceText, setSourceText] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
   const [status, setStatus] = useState<ProcessingStatus>({ step: 'idle', message: '', progress: 0 });
   const [analysisResult, setAnalysisResult] = useState<StudyAnalysisResult | null>(null);
@@ -31,15 +32,23 @@ const App: React.FC = () => {
   // Handlers
   const handleFileLoaded = useCallback(async (file: File) => {
     setFileName(file.name);
-    setStatus({ step: 'extracting', message: 'جاري قراءة ملف PDF...', progress: 10 });
+    setStatus({ step: 'extracting', message: 'جاري قراءة الملف...', progress: 10 });
     
     try {
-      const text = await extractTextFromPDF(file);
-      setPdfText(text);
+      let text = '';
+      if (file.name.endsWith('.pptx') || file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
+        text = await extractTextFromPPTX(file);
+      } else if (file.type === 'application/pdf') {
+        text = await extractTextFromPDF(file);
+      } else {
+        throw new Error('نوع الملف غير مدعوم. يرجى استخدام PDF أو PowerPoint.');
+      }
+
+      setSourceText(text);
       setStatus({ step: 'idle', message: 'تم استخراج النص بنجاح', progress: 30 });
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setStatus({ step: 'error', message: 'فشل في قراءة ملف PDF. تأكد من أن الملف صالح وغير محمي.', progress: 0 });
+      setStatus({ step: 'error', message: error.message || 'فشل في قراءة الملف.', progress: 0 });
     }
   }, []);
 
@@ -48,12 +57,12 @@ const App: React.FC = () => {
       alert('يرجى إدخال مفتاح API');
       return;
     }
-    if (!pdfText) {
-      alert('يرجى رفع ملف PDF أولاً');
+    if (!sourceText) {
+      alert('يرجى رفع ملف صالح أولاً');
       return;
     }
 
-    setStatus({ step: 'analyzing', message: 'جاري تحليل المنهج وتلخيص المحتوى...', progress: 50 });
+    setStatus({ step: 'analyzing', message: 'جاري تحليل المحتوى وتلخيصه...', progress: 50 });
 
     try {
       // Simulate progress updates for UX
@@ -64,7 +73,7 @@ const App: React.FC = () => {
         });
       }, 1000);
 
-      const result = await analyzeText(apiKey, pdfText, summaryType, maxSections);
+      const result = await analyzeText(apiKey, sourceText, summaryType, maxSections);
       
       clearInterval(progressInterval);
       setAnalysisResult(result);
@@ -73,7 +82,7 @@ const App: React.FC = () => {
       console.error(error);
       setStatus({ step: 'error', message: `حدث خطأ أثناء التحليل: ${error.message}`, progress: 0 });
     }
-  }, [apiKey, pdfText, summaryType, maxSections]);
+  }, [apiKey, sourceText, summaryType, maxSections]);
 
   const handleDeepDive = useCallback(async (term: string) => {
     setDeepDiveTerm(term);
@@ -82,14 +91,14 @@ const App: React.FC = () => {
     setIsDeepDiveLoading(true);
 
     try {
-      const explanation = await explainConcept(apiKey, term, pdfText);
+      const explanation = await explainConcept(apiKey, term, sourceText);
       setDeepDiveResult(explanation);
     } catch (error) {
       setDeepDiveResult('حدث خطأ أثناء محاولة شرح المفهوم. يرجى المحاولة مرة أخرى.');
     } finally {
       setIsDeepDiveLoading(false);
     }
-  }, [apiKey, pdfText]);
+  }, [apiKey, sourceText]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -147,9 +156,9 @@ const App: React.FC = () => {
 
             <button 
               onClick={handleStartProcessing}
-              disabled={!pdfText || !apiKey || status.step === 'analyzing' || status.step === 'extracting'}
+              disabled={!sourceText || !apiKey || status.step === 'analyzing' || status.step === 'extracting'}
               className={`w-full font-bold py-4 rounded-lg shadow transition transform active:scale-95 flex justify-center items-center gap-2
-                ${(!pdfText || !apiKey) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}
+                ${(!sourceText || !apiKey) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}
               `}
             >
                <span>✨ ابدأ التحليل والتلخيص</span>
@@ -158,29 +167,20 @@ const App: React.FC = () => {
         </div>
 
         {/* Status Area */}
-        {status.step !== 'idle' && status.step !== 'completed' && (
+        {status.step !== 'idle' && (
           <ProcessingArea status={status} />
         )}
 
-        {/* Error Display */}
-        {status.step === 'error' && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-center gap-2">
-            <AlertCircle className="w-5 h-5" />
-            <span>{status.message}</span>
-          </div>
-        )}
-
         {/* Results Area */}
-        {analysisResult && status.step === 'completed' && (
+        {analysisResult && (
           <ResultsDisplay 
             result={analysisResult} 
             apiKey={apiKey}
-            onOpenDeepDive={() => setIsDeepDiveOpen(true)} 
+            onOpenDeepDive={() => setIsDeepDiveOpen(true)}
           />
         )}
       </main>
 
-      {/* Deep Dive Slide-up Panel */}
       <DeepDivePanel 
         isOpen={isDeepDiveOpen} 
         onClose={() => setIsDeepDiveOpen(false)}
@@ -190,10 +190,6 @@ const App: React.FC = () => {
         isLoading={isDeepDiveLoading}
         onSearch={handleDeepDive}
       />
-
-      <footer className="bg-gray-800 text-gray-300 py-6 text-center mt-auto">
-        <p>تم التطوير باستخدام Gemini 2.5 Flash ⚡ لدعم الطلاب</p>
-      </footer>
     </div>
   );
 };

@@ -190,22 +190,21 @@
       }
 
       /* --- Scoped Styles for Q&A Tab --- */
-      /* Professional & High Contrast Q&A Design */
+      /* Refined Professional Q&A Design */
       .tab-qa h3 {
-        /* Question Block */
-        background-color: #f8fafc; /* slate-50 */
-        border: 1px solid #e2e8f0; /* slate-200 */
+        /* Question Block - Indigo Theme */
+        background-color: #eef2ff; /* indigo-50 */
+        border: 1px solid #c7d2fe; /* indigo-200 */
         border-right: 6px solid #4f46e5; /* indigo-600 */
         color: #312e81; /* indigo-900 */
-        padding: 1.25rem;
-        border-radius: 8px;
-        margin-top: 2.5rem; /* Distinct separation */
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin-top: 2.5rem;
         margin-bottom: 1rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        font-size: 1.2em;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        font-size: 1.25em;
         line-height: 1.6;
         font-weight: 700;
-        position: relative;
       }
       
       .tab-qa h3:first-child {
@@ -213,21 +212,22 @@
       }
 
       .tab-qa blockquote {
-        /* Answer Block */
-        background-color: #f0fdfa; /* teal-50 */
-        border: 1px solid #ccfbf1; /* teal-200 */
-        border-right: 6px solid #14b8a6; /* teal-500 */
-        color: #115e59; /* teal-800 */
-        padding: 1.25rem 1.5rem;
+        /* Answer Block - Green Theme */
+        background-color: #f0fdf4; /* green-50 */
+        border: 1px solid #bbf7d0; /* green-200 */
+        border-right: 6px solid #16a34a; /* green-600 */
+        color: #14532d; /* green-900 */
+        padding: 1.5rem;
         margin: 0 0 2rem 0;
-        border-radius: 8px;
-        font-weight: 500;
+        border-radius: 0.5rem;
+        font-style: normal;
         position: relative;
-        font-size: 1.05em;
+        font-size: 1.1em;
       }
 
       .tab-qa blockquote strong {
-        color: #0f766e; /* teal-700 */
+        color: #14532d; /* green-900 */
+        font-weight: 800;
       }
       
       .tab-qa p {
@@ -253,7 +253,8 @@
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
     "react-markdown": "https://aistudiocdn.com/react-markdown@^10.1.0",
     "remark-gfm": "https://esm.sh/remark-gfm@4.0.0",
-    "marked": "https://esm.sh/marked@12.0.2"
+    "marked": "https://esm.sh/marked@12.0.2",
+    "jszip": "https://esm.sh/jszip@3.10.1"
   }
 }
 </script>
