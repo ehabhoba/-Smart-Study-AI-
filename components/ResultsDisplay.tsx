@@ -2,33 +2,36 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { StudyAnalysisResult } from '../types';
-import { FileText, List, HelpCircle, Volume2, Search, Copy, Check, Download, Loader2, Square, Info, Image as ImageIcon, ZoomIn } from 'lucide-react';
+import { FileText, List, HelpCircle, Volume2, Search, Copy, Check, Download, Loader2, Square, Info, Image as ImageIcon, ZoomIn, AlertTriangle, Printer, Camera } from 'lucide-react';
 import { generateSpeech } from '../services/geminiService';
 import { playAudioFromBase64, stopAudio } from '../services/audioService';
 import { marked } from 'marked';
 import mermaid from 'mermaid';
+import html2canvas from 'html2canvas';
 
-// Initialize mermaid
+// Initialize mermaid with Arial font
 mermaid.initialize({
   startOnLoad: false,
   theme: 'default',
   securityLevel: 'loose',
-  fontFamily: 'Cairo'
+  fontFamily: 'Arial, sans-serif'
 });
 
 const MermaidChart = ({ chart, onInteract }: { chart: string, onInteract?: (term: string) => void }) => {
   const [svg, setSvg] = useState('');
+  const [isError, setIsError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const id = useRef(`mermaid-${Math.random().toString(36).substr(2, 9)}`).current;
 
   useEffect(() => {
     const renderChart = async () => {
       try {
+        setIsError(false);
         const { svg } = await mermaid.render(id, chart);
         setSvg(svg);
       } catch (error) {
         console.error('Failed to render mermaid chart', error);
-        setSvg('<div class="text-red-500">فشل عرض المخطط الهندسي. تأكد من صحة البيانات.</div>');
+        setIsError(true);
       }
     };
     renderChart();
@@ -36,7 +39,7 @@ const MermaidChart = ({ chart, onInteract }: { chart: string, onInteract?: (term
 
   // Add interaction listeners to nodes
   useEffect(() => {
-    if (!containerRef.current || !onInteract) return;
+    if (!containerRef.current || !onInteract || isError) return;
 
     // Enhanced selector to cover more diagram types:
     // .node (Flowchart)
@@ -82,7 +85,23 @@ const MermaidChart = ({ chart, onInteract }: { chart: string, onInteract?: (term
         };
       }
     });
-  }, [svg, onInteract]);
+  }, [svg, onInteract, isError]);
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center p-6 bg-red-50 border border-red-100 rounded-lg my-8 text-center animate-in fade-in">
+        <div className="bg-red-100 p-3 rounded-full mb-3">
+          <AlertTriangle className="text-red-500 w-6 h-6" />
+        </div>
+        <p className="text-red-800 font-bold text-sm">عذراً، تعذر رسم المخطط البياني</p>
+        <p className="text-red-600 text-xs mt-1 max-w-xs">
+          البيانات الواردة من النموذج تحتوي على تنسيق معقد أو غير مدعوم حالياً.
+        </p>
+        {/* Optional: Show raw code for debugging purposes if needed */}
+        {/* <pre className="text-[10px] text-left mt-2 p-2 bg-gray-100 rounded overflow-auto max-w-full text-gray-500">{chart}</pre> */}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center my-8">
@@ -121,10 +140,12 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
   const [audioState, setAudioState] = useState<AudioState>('idle');
   const [copied, setCopied] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState('Zephyr');
+  const [isExportingImage, setIsExportingImage] = useState(false);
   
   // State for highlighting
   const [highlightedText, setHighlightedText] = useState<string | null>(null);
   const stopPlaybackRef = useRef(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const getActiveContent = () => {
     switch (activeTab) {
@@ -209,6 +230,12 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const getBaseFileName = () => {
+      const originalName = result.fileName ? result.fileName.replace(/\.[^/.]+$/, "") : "Document";
+      const date = new Date().toISOString().slice(0, 10);
+      return `SmartStudyAI_${originalName}_${date}`;
+  };
+
   const handleDownloadWord = () => {
     const overviewHtml = marked.parse(result.overview) as string;
     const summaryHtml = marked.parse(result.summary) as string;
@@ -237,7 +264,7 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
         <meta charset='utf-8'>
         <title>Smart Study Technical Report</title>
         <style>
-          body { font-family: 'Cairo', 'Segoe UI', 'Arial', sans-serif; direction: rtl; text-align: right; line-height: 1.6; color: #374151; }
+          body { font-family: 'Arial', sans-serif; direction: rtl; text-align: right; line-height: 1.6; color: #374151; }
           table { width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #cbd5e1; }
           td { border: 1px solid #cbd5e1; padding: 8px; vertical-align: top; background-color: #fff; }
         </style>
@@ -252,10 +279,38 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `SmartStudy_Technical_Report_${new Date().toISOString().slice(0,10)}.doc`;
+    link.download = `${getBaseFileName()}.doc`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handlePrintPdf = () => {
+    window.print();
+  };
+
+  const handleDownloadImage = async () => {
+    if (!contentRef.current) return;
+    setIsExportingImage(true);
+    
+    try {
+        const canvas = await html2canvas(contentRef.current, {
+            scale: 2, // Higher resolution
+            useCORS: true,
+            backgroundColor: '#ffffff'
+        });
+        
+        const image = canvas.toDataURL("image/png");
+        const link = document.createElement('a');
+        link.download = `${getBaseFileName()}.png`;
+        link.href = image;
+        link.click();
+    } catch (error) {
+        console.error("Image Export Failed", error);
+        alert("فشل في حفظ الصورة. المحتوى قد يكون كبيراً جداً.");
+    } finally {
+        setIsExportingImage(false);
+    }
   };
 
   const TabButton = ({ id, label, icon: Icon }: { id: typeof activeTab, label: string, icon: any }) => (
@@ -289,29 +344,40 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
 
   return (
     <div className="animate-fade-in-up">
-       {/* Tab Navigation */}
-       <div className="flex border-b border-gray-200 mb-0 bg-white rounded-t-xl overflow-x-auto shadow-sm">
+       {/* Tab Navigation (Hidden in Print) */}
+       <div className="flex border-b border-gray-200 mb-0 bg-white rounded-t-xl overflow-x-auto shadow-sm no-print">
          <TabButton id="summary" label="الملخص & الرسوم" icon={FileText} />
          <TabButton id="qa" label="الأسئلة" icon={HelpCircle} />
          <TabButton id="figures" label="الأشكال المرفقة" icon={ImageIcon} />
          <TabButton id="overview" label="نظرة عامة" icon={List} />
        </div>
 
-       {/* Toolbar */}
-       <div className="bg-gray-50 p-3 border-x border-gray-200 flex flex-wrap gap-2 justify-between items-center">
-         <div className="flex gap-2">
-            <button onClick={handleCopy} className="btn-secondary text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 flex items-center gap-2 transition">
+       {/* Toolbar (Hidden in Print) */}
+       <div className="bg-gray-50 p-3 border-x border-gray-200 flex flex-wrap gap-2 justify-between items-center no-print">
+         <div className="flex gap-2 items-center flex-wrap">
+            <button onClick={handleCopy} className="btn-secondary text-xs md:text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 flex items-center gap-2 transition" title="نسخ النص">
               {copied ? <Check size={16} className="text-green-600" /> : <Copy size={16} className="text-gray-500" />}
-              {copied ? "تم النسخ" : "نسخ"}
+              {copied ? "منسوخ" : "نسخ"}
             </button>
-            <button onClick={handleDownloadWord} className="btn-secondary text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 flex items-center gap-2 transition text-blue-700">
+            
+            <div className="h-6 w-px bg-gray-300 mx-1 hidden md:block"></div>
+
+            <button onClick={handleDownloadWord} className="btn-secondary text-xs md:text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 flex items-center gap-2 transition text-blue-800" title="تصدير Word">
                <Download size={16} />
                Word
             </button>
+            <button onClick={handlePrintPdf} className="btn-secondary text-xs md:text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 flex items-center gap-2 transition text-red-700" title="تصدير PDF (طباعة)">
+               <Printer size={16} />
+               PDF
+            </button>
+            <button onClick={handleDownloadImage} disabled={isExportingImage} className="btn-secondary text-xs md:text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 flex items-center gap-2 transition text-purple-700" title="حفظ كصورة">
+               {isExportingImage ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+               صورة
+            </button>
          </div>
          
-         <div className="flex gap-2 items-center flex-wrap">
-             <button onClick={() => onOpenDeepDive()} className="text-sm py-1.5 px-3 bg-purple-50 border border-purple-200 text-purple-700 rounded hover:bg-purple-100 flex items-center gap-2 transition">
+         <div className="flex gap-2 items-center flex-wrap mt-2 md:mt-0">
+             <button onClick={() => onOpenDeepDive()} className="text-xs md:text-sm py-1.5 px-3 bg-purple-50 border border-purple-200 text-purple-700 rounded hover:bg-purple-100 flex items-center gap-2 transition">
                <Search size={16} />
                شرح (Deep Dive)
              </button>
@@ -321,7 +387,7 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
                  <select 
                    value={selectedVoice} 
                    onChange={(e) => setSelectedVoice(e.target.value)}
-                   className="text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 outline-none transition cursor-pointer"
+                   className="text-xs md:text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 outline-none transition cursor-pointer max-w-[100px] md:max-w-none"
                    disabled={audioState !== 'idle'}
                  >
                    {VOICES.map(v => (
@@ -330,7 +396,7 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
                  </select>
                  <button 
                    onClick={handleReadAloud}
-                   className={`text-sm py-1.5 px-3 text-white rounded flex items-center gap-2 transition shadow-sm min-w-[140px] justify-center 
+                   className={`text-xs md:text-sm py-1.5 px-3 text-white rounded flex items-center gap-2 transition shadow-sm min-w-[120px] justify-center 
                      ${audioState === 'playing' ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-700'}
                    `}
                  >
@@ -342,14 +408,14 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
        </div>
 
        {/* Content */}
-       <div className="bg-white p-6 md:p-10 rounded-b-xl border border-gray-200 shadow-sm min-h-[400px]">
+       <div ref={contentRef} id="results-content" className="bg-white p-6 md:p-10 rounded-b-xl border border-gray-200 shadow-sm min-h-[400px] print-content">
           {activeTab === 'figures' ? (
              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {result.extractedImages && result.extractedImages.length > 0 ? (
                   result.extractedImages.map((img, index) => (
-                    <div key={index} className="group relative rounded-lg overflow-hidden border border-gray-200 shadow hover:shadow-lg transition">
+                    <div key={index} className="group relative rounded-lg overflow-hidden border border-gray-200 shadow hover:shadow-lg transition page-break-inside-avoid">
                       <img src={img} alt={`Figure ${index + 1}`} className="w-full h-48 object-cover bg-gray-100" />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition flex items-center justify-center opacity-0 group-hover:opacity-100 no-print">
                          <button 
                            onClick={() => {
                              const w = window.open("");
