@@ -149,10 +149,10 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
             </li>
             <li className="flex justify-between border-b border-gray-200 pb-1">
               <span>💎 باقة المحترف (20 مشروع)</span>
-              <span className="font-bold">50 جنيه</span>
+              <span className="font-bold">20 جنيه</span>
             </li>
             <li className="flex justify-between border-b border-gray-200 pb-1">
-              <span>💎 باقة الخبراء (50 مشروع)</span>
+              <span>💎 باقة الخبراء (200 مشروع)</span>
               <span className="font-bold">100 جنيه</span>
             </li>
           </ul>

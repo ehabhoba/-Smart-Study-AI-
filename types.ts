@@ -1,4 +1,7 @@
 export interface StudyAnalysisResult {
+  id?: string; // Unique ID for history
+  date?: string; // Timestamp
+  fileName?: string; // Name of the source file
   overview: string;
   summary: string;
   qa: string;

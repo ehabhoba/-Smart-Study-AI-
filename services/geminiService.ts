@@ -36,50 +36,62 @@ export const analyzeText = async (
   let summaryInstructions = "";
   switch (summaryType) {
     case SummaryType.EXAM:
-      summaryInstructions = "تلخيص مكثف جداً (Exam Capsule) يركز فقط على النقاط الهامة للامتحان.";
+      summaryInstructions = "Focus ONLY on critical exam definitions, formulas, and key takeaways. Ignore filler text.";
       break;
     case SummaryType.MEDIUM:
-      summaryInstructions = "تلخيص متوسط متوازن يشرح المفاهيم الرئيسية بوضوح.";
+      summaryInstructions = "Provide a balanced summary explaining main concepts clearly with examples.";
       break;
     case SummaryType.FULL:
-      summaryInstructions = "تلخيص شامل ومفصل يغطي جميع أبواب وفصول الكتاب بالتفصيل.";
+      summaryInstructions = "Provide a comprehensive, detailed analysis covering every chapter and section thoroughly.";
       break;
   }
 
   if (maxSections) {
-    summaryInstructions += ` يجب أن لا يتجاوز التلخيص ${maxSections} قسم/فقرة رئيسية.`;
+    summaryInstructions += ` The summary should be structured into approximately ${maxSections} main sections.`;
   }
 
   const systemPrompt = `
-    أنت خبير تعليمي ومهندس برمجيات/نظم محترف. مهمتك إعداد مذكرات دراسية متطورة ورسوم هندسية توضيحية.
-    
-    المهمة:
-    1. تحليل المحتوى وتحديد المادة والمرحلة.
-    2. عمل ${summaryInstructions}.
-    
-    3. **الرسوم الهندسية والبيانية (Engineering Drawings & Graphical Representation)**:
-       - أنت مطالب بتطوير رسوم بيانية وتوضيحية باستخدام **Mermaid.js**.
-       - إذا كان المحتوى يتحدث عن أنظمة، برمجة، أو عمليات هندسية، استخدم:
-         * **Class Diagram** (classDiagram) لهيكلة البيانات.
-         * **Sequence Diagram** (sequenceDiagram) لتتابع العمليات.
-         * **State Diagram** (stateDiagram-v2) لحالات النظام.
-         * **ER Diagram** (erDiagram) لقواعد البيانات.
-       - للمفاهيم العامة، استخدم **Mindmap** أو **Flowchart** (graph TD).
-       - **هام**: بعد كل رسم بياني، أضف فقرة قصيرة تشرح الرسم (مثال: *> 💡 يوضح الرسم أعلاه العلاقة بين الكائنات...*).
-       - **تحذير**: النصوص داخل Mermaid يجب أن تكون بين علامات تنصيص مزدوجة "" (مثال: A["النظام الفرعي"]).
+    You are an elite Educational Consultant and Systems Architect. Your task is to analyze study materials and generate high-quality, structured study guides.
 
-    4. **التنسيق العام**:
-       - استخدم H2 للعناوين الرئيسية، H3 للفرعية.
-       - استخدم Blockquotes للملاحظات الهامة.
-       - استخدم الجداول للمقارنات.
+    **CORE INSTRUCTION - LANGUAGE DETECTION:**
+    1. **DETECT** the dominant language of the user's input content (Text/Images).
+    2. **GENERATE ALL OUTPUT strictly in that SAME LANGUAGE**.
+       - If input is Arabic -> Output MUST be Arabic.
+       - If input is English -> Output MUST be English.
+       - If input is French -> Output MUST be French.
 
-    5. **تنسيق الأسئلة والأجوبة (Q&A)**:
-       - H3 للسؤال، والجواب في Blockquote تحته مباشرة.
+    **Task Objectives:**
+    1. **Analyze** the provided content (text/images).
+    2. **Generate** a ${summaryType} summary based on these instructions: ${summaryInstructions}.
+    3. **Format** the output professionally using Markdown.
 
-    ${extractedImagesCount ? `6. ملاحظة: تم استخراج ${extractedImagesCount} صورة من الملف الأصلي وسيتم عرضها في تبويب "الأشكال والرسومات". أشر إليها في الشرح إذا لزم الأمر (مثال: "انظر الأشكال المرفقة").` : ''}
+    **Formatting Rules (Strictly Follow):**
+    - Use **Bold** for key terms and definitions.
+    - Use *Italic* for emphasis.
+    - Use Tables for comparisons or structured data lists.
+    - Use Bullet points for readability.
+    - Use H2 (##) for Main Sections and H3 (###) for Subsections.
+    - Add emojis to section headers to make it engaging (e.g., 📌, 💡, ⚙️).
+
+    **3. Engineering & Diagrams (Mermaid.js):**
+    - You MUST generate **Mermaid.js** code for visual representation.
+    - Identify systems, processes, or hierarchies in the text.
+    - Use:
+      * **Class Diagram** (classDiagram) for object-oriented or structural data.
+      * **Sequence Diagram** (sequenceDiagram) for interactions/processes.
+      * **State Diagram** (stateDiagram-v2) for lifecycle/states.
+      * **ER Diagram** (erDiagram) for databases/relationships.
+      * **Mindmap** or **Flowchart** (graph TD) for general concepts.
+    - **CRITICAL**: All text inside Mermaid nodes MUST be in the **SAME LANGUAGE** as the input.
+    - **CRITICAL**: All text inside Mermaid nodes MUST be wrapped in double quotes "". Example: A["النص هنا"]
+
+    **4. Q&A Section:**
+    - Generate smart, high-value review questions.
+    - Format: Question (H3), Answer (Blockquote).
+
+    ${extractedImagesCount ? `Note: ${extractedImagesCount} images were extracted from the source file. Reference them in the summary if relevant (e.g., "See Figure 1").` : ''}
     
-    المخرجات مطلوبة كـ JSON Structure محدد.
-    اللغة: العربية.
+    **Output Format:** JSON object containing 'overview', 'summary', and 'qa'.
   `;
 
   const userContentParts: any[] = [{ text: systemPrompt }];
@@ -91,11 +103,11 @@ export const analyzeText = async (
         data: content.image.data
       }
     });
-    userContentParts.push({ text: "قم بتحليل هذه الصورة واستخراج المعلومات منها لعمل التلخيص." });
+    userContentParts.push({ text: "Analyze this image and include its content in the summary." });
   }
   
   if (content.text) {
-    userContentParts.push({ text: `محتوى الكتاب:\n${content.text.substring(0, 500000)}` });
+    userContentParts.push({ text: `Source Content:\n${content.text.substring(0, 500000)}` });
   }
 
   // We use Schema to ensure JSON output structure
@@ -109,9 +121,9 @@ export const analyzeText = async (
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          overview: { type: Type.STRING, description: "وصف عام للمادة والمرحلة الدراسية." },
-          summary: { type: Type.STRING, description: "الملخص بصيغة Markdown مع رسوم هندسية Mermaid." },
-          qa: { type: Type.STRING, description: "الأسئلة والأجوبة بصيغة Markdown." },
+          overview: { type: Type.STRING, description: "General overview of the material (subject, level, main topic) in the detected language." },
+          summary: { type: Type.STRING, description: "The detailed Markdown summary including Mermaid diagrams in the detected language." },
+          qa: { type: Type.STRING, description: "Review questions and answers in Markdown format in the detected language." },
         },
         required: ["overview", "summary", "qa"],
       },
@@ -125,16 +137,14 @@ export const analyzeText = async (
     } catch (e) {
       console.error("JSON Parsing Error", e);
       console.log("Raw Text:", response.text);
-      // Fallback: If parsing fails, try to return a basic error object so the app doesn't crash
       if (response.text.includes("overview")) {
-         // A very desperate fallback or just throw clearer error
-         throw new Error("حدث خطأ في تنسيق البيانات المستلمة (JSON Syntax). حاول مرة أخرى.");
+         throw new Error("Formatting error in AI response. Please try again.");
       }
-      throw new Error("فشل في تحليل استجابة الذكاء الاصطناعي (JSON Error).");
+      throw new Error("Failed to analyze content. Please try again.");
     }
   }
 
-  throw new Error("لم يتم استلام رد صالح من النموذج.");
+  throw new Error("No response received from AI model.");
 };
 
 export const explainConcept = async (
@@ -148,25 +158,29 @@ export const explainConcept = async (
   let complexityPrompt = "";
   switch (complexity) {
     case ComplexityLevel.BASIC:
-      complexityPrompt = "اشرح بأسلوب مبسط جداً (Language: Simple Arabic).";
+      complexityPrompt = "Explain in very simple terms (EL15).";
       break;
     case ComplexityLevel.INTERMEDIATE:
-      complexityPrompt = "اشرح بأسلوب أكاديمي متوازن (Language: Standard Academic Arabic).";
+      complexityPrompt = "Explain in a standard academic tone.";
       break;
     case ComplexityLevel.ADVANCED:
-      complexityPrompt = "اشرح بعمق تقني وعلمي دقيق (Language: Advanced/Technical Arabic).";
+      complexityPrompt = "Explain with technical depth and advanced terminology.";
       break;
   }
 
   const systemPrompt = `
-    أنت مدرس خصوصي ومهندس. اشرح المفهوم: "${term}".
-    السياق: ${context.substring(0, 100000)}
+    You are an expert tutor.
     
-    المتطلبات:
+    **Task:** Explain the concept: "${term}".
+    **Context:** ${context.substring(0, 100000)}
+    
+    **CRITICAL LANGUAGE RULE:** Detect the language of the 'Context' provided. The explanation MUST be in the **SAME LANGUAGE** as the context.
+
+    **Requirements:**
     1. ${complexityPrompt}
-    2. الشرح Markdown.
-    3. إذا كان المفهوم عملية أو نظام، ارسم مخطط Mermaid بسيط لتوضيحه.
-    4. اقترح 3-5 مصطلحات مرتبطة.
+    2. Format using clear Markdown (Bold key terms, use bullet points).
+    3. If applicable, generate a small Mermaid diagram to visualize the concept.
+    4. Suggest 3-5 related terms for further study.
   `;
 
   const response = await ai.models.generateContent({
@@ -179,11 +193,11 @@ export const explainConcept = async (
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          explanation: { type: Type.STRING, description: "الشرح Markdown" },
+          explanation: { type: Type.STRING, description: "Detailed Markdown explanation in the same language as context." },
           relatedTerms: { 
             type: Type.ARRAY, 
             items: { type: Type.STRING },
-            description: "قائمة مصطلحات" 
+            description: "List of related terms in the same language." 
           }
         },
         required: ["explanation", "relatedTerms"]
@@ -197,11 +211,11 @@ export const explainConcept = async (
       return JSON.parse(cleanedJson) as DeepDiveResponse;
     } catch (e) {
       console.error("JSON Parsing Error", e);
-      throw new Error("عذراً، لم أتمكن من توليد الشرح (JSON Error).");
+      throw new Error("Failed to generate explanation.");
     }
   }
   
-  throw new Error("عذراً، لم أتمكن من توليد الشرح.");
+  throw new Error("Failed to generate explanation.");
 };
 
 export const generateSpeech = async (apiKey: string, text: string, voiceName: string = 'Zephyr'): Promise<string> => {
@@ -212,7 +226,7 @@ export const generateSpeech = async (apiKey: string, text: string, voiceName: st
 
     const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: `اقرأ بصوت واضح ومناسب للمواد التعليمية: ${textToSpeak}` }] }],
+        contents: [{ parts: [{ text: textToSpeak }] }],
         config: {
             responseModalities: [Modality.AUDIO],
             speechConfig: {

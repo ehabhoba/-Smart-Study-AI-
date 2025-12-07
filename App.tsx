@@ -7,6 +7,7 @@ import { ProcessingArea } from './components/ProcessingArea';
 import { ResultsDisplay } from './components/ResultsDisplay';
 import { DeepDivePanel } from './components/DeepDivePanel';
 import { SeoContent } from './components/SeoContent';
+import { HistoryList } from './components/HistoryList';
 import { extractTextFromPDF } from './services/pdfService';
 import { extractTextFromPPTX } from './services/pptxService';
 import { analyzeText, explainConcept } from './services/geminiService';
@@ -42,6 +43,24 @@ const App: React.FC = () => {
   const [status, setStatus] = useState<ProcessingStatus>({ step: 'idle', message: '', progress: 0 });
   const [analysisResult, setAnalysisResult] = useState<StudyAnalysisResult | null>(null);
   
+  // History State
+  const [history, setHistory] = useState<StudyAnalysisResult[]>(() => {
+    const saved = localStorage.getItem('smart_study_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const saveToHistory = (result: StudyAnalysisResult) => {
+    const newHistory = [result, ...history].slice(0, 10); // Keep last 10
+    setHistory(newHistory);
+    localStorage.setItem('smart_study_history', JSON.stringify(newHistory));
+  };
+
+  const deleteFromHistory = (id: string) => {
+    const newHistory = history.filter(h => h.id !== id);
+    setHistory(newHistory);
+    localStorage.setItem('smart_study_history', JSON.stringify(newHistory));
+  };
+
   // Configuration State
   const [summaryType, setSummaryType] = useState<SummaryType>(SummaryType.MEDIUM);
   const [maxSections, setMaxSections] = useState<number | undefined>(undefined);
@@ -101,6 +120,15 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const handleLoadHistory = (item: StudyAnalysisResult) => {
+    setAnalysisResult(item);
+    setFileName(item.fileName || 'ملخص محفوظ');
+    setSourceText(''); // We might not have source text saved to save space, but we have the result
+    setExtractedFileImages(item.extractedImages || []);
+    setStatus({ step: 'completed', message: 'تم استرجاع الملخص من الأرشيف', progress: 100 });
+    window.scrollTo({ top: 300, behavior: 'smooth' });
+  };
+
   const handleStartProcessing = useCallback(async () => {
     // 1. Check if user has credits
     if (subscription.remainingCredits <= 0) {
@@ -156,26 +184,27 @@ const App: React.FC = () => {
         extractedFileImages.length
       );
       
-      if (extractedFileImages.length > 0) {
-        result.extractedImages = extractedFileImages;
-      }
+      const finalResult: StudyAnalysisResult = {
+        ...result,
+        extractedImages: extractedFileImages.length > 0 ? extractedFileImages : undefined,
+        id: Date.now().toString(),
+        date: new Date().toISOString(),
+        fileName: fileName
+      };
       
       clearInterval(progressInterval);
-      setAnalysisResult(result);
+      setAnalysisResult(finalResult);
+      saveToHistory(finalResult); // Save to history immediately
       setStatus({ step: 'completed', message: 'تم التحليل والتطوير بنجاح!', progress: 100 });
     } catch (error: any) {
       clearInterval(progressInterval);
       console.error(error);
-      // Refund the credit on error? 
-      // For now, let's simplify and say errors consume credit to prevent API abuse, 
-      // OR you can refund here: updateSubscription({...subscription, remainingCredits: subscription.remainingCredits + 1});
       setStatus({ step: 'error', message: `حدث خطأ أثناء التحليل: ${error.message}`, progress: 0 });
     }
-  }, [subscription, sourceText, sourceImage, summaryType, maxSections, extractedFileImages]);
+  }, [subscription, sourceText, sourceImage, summaryType, maxSections, extractedFileImages, fileName, history]);
 
   const handleDeepDive = useCallback(async (term: string) => {
-    // Deep dive is "Free" as long as they have an active session or key, 
-    // or we can charge for it too. For now, let's keep it free if they have a key.
+    // Deep dive is "Free" as long as they have an active session or key
     if (!subscription.activeApiKey) {
         alert("يرجى تفعيل الاشتراك أولاً.");
         return;
@@ -187,7 +216,7 @@ const App: React.FC = () => {
     setIsDeepDiveLoading(true);
 
     try {
-      const result = await explainConcept(subscription.activeApiKey, term, sourceText, deepDiveComplexity);
+      const result = await explainConcept(subscription.activeApiKey, term, sourceText || (analysisResult?.summary || ''), deepDiveComplexity);
       setDeepDiveResult(result);
     } catch (error) {
       console.error(error);
@@ -198,7 +227,7 @@ const App: React.FC = () => {
     } finally {
       setIsDeepDiveLoading(false);
     }
-  }, [subscription.activeApiKey, sourceText, deepDiveComplexity]);
+  }, [subscription.activeApiKey, sourceText, deepDiveComplexity, analysisResult]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -287,6 +316,12 @@ const App: React.FC = () => {
             onOpenDeepDive={(term) => term ? handleDeepDive(term) : setIsDeepDiveOpen(true)}
           />
         )}
+
+        {/* History Area */}
+        {history.length > 0 && (
+          <HistoryList history={history} onLoad={handleLoadHistory} onDelete={deleteFromHistory} />
+        )}
+
       </main>
 
       {/* SEO Content Section (Blog/Articles) */}
@@ -308,7 +343,7 @@ const App: React.FC = () => {
       <footer className="bg-gray-100 border-t border-gray-200 py-8 mt-12 text-center text-gray-500 text-sm">
         <div className="container mx-auto px-4">
           <p className="mb-4">
-            المُلخص الدراسي الذكي © 2024 - مدعوم بواسطة Google Gemini 2.5 Flash
+            المُلخص الدراسي الذكي © 2024 تم تصميمه وتطويره بواسطة <a href="https://ehabgm.online" className="text-blue-600 hover:underline font-bold" target="_blank" rel="noopener noreferrer">ehabgm.online</a> - مدعوم بواسطة Google Gemini 2.5 Flash
           </p>
           <div className="flex justify-center gap-4 mb-6">
             <span className="flex items-center gap-1 hover:text-blue-600 transition"><Globe size={16} /> تلخيص PDF</span>
