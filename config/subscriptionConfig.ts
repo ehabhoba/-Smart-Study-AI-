@@ -1,11 +1,13 @@
 
-export const TRIAL_KEY = "AIzaSyA9ux-xuov0oO50AKtN8LKEloM3l2zKsws";
+export const TRIAL_KEY = "AIzaSyA9ux-xuov0oO50AKtN8LKEloM3l2zKsws"; // المفتاح المجاني المشترك
+export const DAILY_FREE_LIMIT = 5; // عدد المحاولات المجانية اليومية
 
 export interface SubscriptionState {
-  hasUsedTrial: boolean;
+  hasUsedTrial: boolean; // Keep for legacy, but mainly rely on tier 0
   remainingCredits: number;
-  currentTier: number;
+  currentTier: number; // 0 = Free, >0 = Paid
   activeApiKey: string;
+  lastDailyReset?: string; // ISO Date String for the last time free credits were reset
 }
 
 export const getRandomKey = (keys: string[]) => {

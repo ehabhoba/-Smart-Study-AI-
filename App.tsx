@@ -14,21 +14,50 @@ import { extractTextFromPPTX } from './services/pptxService';
 import { analyzeText, explainConcept } from './services/geminiService';
 import { StudyAnalysisResult, SummaryType, ProcessingStatus, DeepDiveResponse, ComplexityLevel } from './types';
 import { BookOpen, Github, Globe, Lock } from 'lucide-react';
-import { SubscriptionState } from './config/subscriptionConfig';
+import { SubscriptionState, DAILY_FREE_LIMIT, TRIAL_KEY } from './config/subscriptionConfig';
 
 const App: React.FC = () => {
-  // Subscription State
+  // Subscription State Initialization with Daily Reset Check
   const [subscription, setSubscription] = useState<SubscriptionState>(() => {
     const saved = localStorage.getItem('smart_study_sub');
+    let initialState: SubscriptionState;
+
     if (saved) {
-      return JSON.parse(saved);
+      initialState = JSON.parse(saved);
+    } else {
+      // New user default state
+      initialState = {
+        hasUsedTrial: false,
+        remainingCredits: 0,
+        currentTier: 0,
+        activeApiKey: '',
+        lastDailyReset: undefined
+      };
     }
-    return {
-      hasUsedTrial: false,
-      remainingCredits: 0,
-      currentTier: 0,
-      activeApiKey: ''
-    };
+    
+    // Check for Daily Reset (Only for Free Tier Users)
+    if (initialState.currentTier === 0) {
+        const now = new Date();
+        const lastReset = initialState.lastDailyReset ? new Date(initialState.lastDailyReset) : new Date(0);
+        
+        // Calculate difference in hours
+        const diffHours = (now.getTime() - lastReset.getTime()) / (1000 * 60 * 60);
+
+        // If more than 24 hours have passed OR it's a completely new user
+        if (diffHours >= 24 || !initialState.lastDailyReset) {
+            initialState = {
+                ...initialState,
+                remainingCredits: DAILY_FREE_LIMIT, // Reset to 5
+                activeApiKey: TRIAL_KEY, // Ensure trial key is set
+                lastDailyReset: now.toISOString(),
+                hasUsedTrial: true // Flag as "using" the free tier
+            };
+            // Save immediately to avoid race conditions
+            localStorage.setItem('smart_study_sub', JSON.stringify(initialState));
+        }
+    }
+
+    return initialState;
   });
 
   // Persist subscription changes
@@ -147,7 +176,11 @@ const App: React.FC = () => {
   const handleStartProcessing = useCallback(async () => {
     // 1. Check if user has credits
     if (subscription.remainingCredits <= 0) {
-      alert('عفواً، رصيدك نفذ. يرجى شحن رصيد جديد للمتابعة.');
+      if (subscription.currentTier === 0) {
+        alert('لقد استهلكت الـ 5 محاولات اليومية المجانية. يرجى الانتظار 24 ساعة أو شحن رصيد مدفوع.');
+      } else {
+        alert('عفواً، رصيدك نفذ. يرجى شحن رصيد جديد للمتابعة.');
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -254,20 +287,22 @@ const App: React.FC = () => {
       <main className="container mx-auto px-4 py-8 max-w-5xl flex-grow">
         
         {/* Subscription / Access Control Section */}
-        <section className="mb-8 animate-fade-in-up">
+        <section className="mb-8 animate-fade-in-up" id="subscription-section">
           <ApiKeyInput subscription={subscription} updateSubscription={updateSubscription} />
         </section>
 
         {/* Upload & Config Grid */}
         <div className={`grid md:grid-cols-2 gap-6 mb-8 transition-opacity duration-300 ${subscription.remainingCredits <= 0 ? 'opacity-50 pointer-events-none filter blur-[1px]' : ''}`}>
-          <FileUpload 
-            onFileLoaded={handleFileLoaded} 
-            fileName={fileName}
-            disabled={status.step === 'analyzing' || status.step === 'extracting'}
-            onClear={handleClearFile}
-          />
+          <div id="upload-section" className="h-full">
+            <FileUpload 
+              onFileLoaded={handleFileLoaded} 
+              fileName={fileName}
+              disabled={status.step === 'analyzing' || status.step === 'extracting'}
+              onClear={handleClearFile}
+            />
+          </div>
           
-          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col justify-between h-full relative">
+          <div id="settings-section" className="bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col justify-between h-full relative">
              {/* Lock Overlay if no credits */}
              {subscription.remainingCredits <= 0 && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-50/50">

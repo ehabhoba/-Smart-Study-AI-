@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Key, Lock, Unlock, Zap, MessageCircle, Star, CheckCircle, XCircle } from 'lucide-react';
-import { REDEMPTION_CODES, TRIAL_KEY, getRandomKey, SubscriptionState } from '../config/subscriptionConfig';
+import { Key, Lock, Unlock, Zap, MessageCircle, Star, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { REDEMPTION_CODES, TRIAL_KEY, getRandomKey, SubscriptionState, DAILY_FREE_LIMIT } from '../config/subscriptionConfig';
 
 interface Props {
   subscription: SubscriptionState;
@@ -12,22 +12,33 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
   const [inputCode, setInputCode] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+  const [nextReset, setNextReset] = useState('');
+
   const whatsappNumber = "201022679250"; 
   const whatsappMessage = "مرحباً، أريد شراء كود شحن للملخص الدراسي الذكي.";
 
-  // Handle Free Trial Activation
-  const handleActivateTrial = () => {
-    if (subscription.hasUsedTrial) return;
-    
-    const newState: SubscriptionState = {
-      hasUsedTrial: true, // Mark as used immediately so they can't use it again after this session
-      remainingCredits: 1, // One time use
-      currentTier: 0,
-      activeApiKey: TRIAL_KEY
-    };
-    updateSubscription(newState);
-  };
+  // Calculate time until next reset for free tier
+  useEffect(() => {
+    if (subscription.currentTier === 0 && subscription.lastDailyReset) {
+      const updateTimer = () => {
+        const resetTime = new Date(subscription.lastDailyReset!).getTime() + (24 * 60 * 60 * 1000);
+        const now = new Date().getTime();
+        const diff = resetTime - now;
+
+        if (diff <= 0) {
+          setNextReset('جاهز للتجديد الآن');
+        } else {
+          const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          setNextReset(`${hours} ساعة و ${minutes} دقيقة`);
+        }
+      };
+      
+      updateTimer();
+      const interval = setInterval(updateTimer, 60000); // Update every minute
+      return () => clearInterval(interval);
+    }
+  }, [subscription.lastDailyReset, subscription.currentTier]);
 
   // Handle Code Redemption
   const handleRedeemCode = () => {
@@ -50,12 +61,14 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
     const plan = REDEMPTION_CODES[cleanCode];
 
     if (plan) {
-      // Valid Code Logic
+      // Valid Code Logic - Upgrade to Paid Tier
+      // Note: Paid credits are added ON TOP of current credits, and tier changes
       const newState: SubscriptionState = {
-        hasUsedTrial: true,
+        ...subscription,
         remainingCredits: subscription.remainingCredits + plan.credits,
         currentTier: plan.tier,
-        activeApiKey: getRandomKey(plan.keys) // Assign a random key from the pool
+        activeApiKey: getRandomKey(plan.keys),
+        // We keep the trial info but move to paid tier
       };
       
       updateSubscription(newState);
@@ -77,33 +90,48 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
     }
   };
 
-  // 1. Case: Active Subscription with Credits
+  const isFreeTier = subscription.currentTier === 0;
+
+  // 1. Case: Active Subscription (Free or Paid) with Credits
   if (subscription.remainingCredits > 0) {
     return (
       <div className="bg-white rounded-xl shadow-md p-6 border border-green-200 animate-in fade-in slide-in-from-top-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="bg-green-100 p-3 rounded-full">
               <Zap size={24} className="text-green-600 fill-current" />
             </div>
             <div>
-              <h3 className="font-bold text-green-900 text-lg">الاشتراك مفعل</h3>
+              <h3 className="font-bold text-green-900 text-lg">
+                {isFreeTier ? 'الباقة المجانية اليومية' : 'الاشتراك المميز مفعل'}
+              </h3>
               <p className="text-green-700">
-                الرصيد المتبقي: <span className="font-bold text-2xl mx-1">{subscription.remainingCredits}</span> مشروع
+                المتبقي اليوم: <span className="font-bold text-2xl mx-1">{subscription.remainingCredits}</span> {isFreeTier ? `/ ${DAILY_FREE_LIMIT}` : ''} مشروع
               </p>
             </div>
           </div>
-          {subscription.currentTier > 0 && (
-            <span className="bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-              باقة {subscription.currentTier} جنيه
-            </span>
-          )}
-          {subscription.currentTier === 0 && (
-            <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-              نسخة تجريبية
-            </span>
-          )}
+          
+          <div className="flex flex-col items-end gap-1">
+            {isFreeTier ? (
+              <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                <Clock size={12} />
+                يتجدد الرصيد خلال: {nextReset || '...'}
+              </span>
+            ) : (
+              <span className="bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                باقة {subscription.currentTier} جنيه
+              </span>
+            )}
+            
+            {/* If paid user wants to add more */}
+            {!isFreeTier && (
+                 <div className="text-xs text-gray-500 underline cursor-pointer mt-1" onClick={() => setSuccess('أدخل كود جديد في الأسفل للشحن')}>
+                    شحن المزيد؟
+                 </div>
+            )}
+          </div>
         </div>
+        
         {/* If user just redeemed, show success message here too briefly */}
         {success && (
             <div className="mt-4 bg-green-50 border border-green-200 text-green-800 p-3 rounded-lg flex items-center gap-2 text-sm font-medium">
@@ -115,7 +143,7 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
     );
   }
 
-  // 2. Case: No Credits (Expired or Fresh)
+  // 2. Case: No Credits (Expired Free or Empty Paid)
   return (
     <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 relative overflow-hidden">
       <div className="absolute top-0 left-0 w-2 h-full bg-red-500"></div>
@@ -126,24 +154,23 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
           تفعيل الخدمة
         </h3>
         
-        {!subscription.hasUsedTrial ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        {isFreeTier ? (
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
-              <p className="font-bold text-blue-900">جديد معنا؟</p>
-              <p className="text-sm text-blue-700">جرب الأداة مجاناً لمرة واحدة لتتأكد من الجودة.</p>
+              <p className="font-bold text-orange-900">انتهت المحاولات المجانية لليوم ({DAILY_FREE_LIMIT}/5)</p>
+              <p className="text-sm text-orange-800 flex items-center gap-1 mt-1">
+                 <Clock size={14} />
+                 سيتم تجديد الرصيد المجاني خلال: <span className="font-bold dir-ltr">{nextReset}</span>
+              </p>
             </div>
-            <button 
-              onClick={handleActivateTrial}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold shadow-sm transition flex items-center gap-2"
-            >
-              <Star size={16} className="fill-current" />
-              تجربة مجانية الآن
-            </button>
+            <div className="text-center text-xs text-gray-500">
+               أو اشترِ كود شحن للمتابعة فوراً 👇
+            </div>
           </div>
         ) : (
           <div className="bg-red-50 border border-red-100 rounded-lg p-3 mb-6 text-sm text-red-800 flex items-center gap-2">
             <div className="bg-white p-1 rounded-full"><Lock size={12} /></div>
-            <span>لقد استهلكت جميع محاولاتك. يرجى شحن رصيدك للمتابعة.</span>
+            <span>لقد استهلكت جميع رصيدك المدفوع. يرجى شحن رصيد جديد للمتابعة.</span>
           </div>
         )}
       </div>
@@ -152,7 +179,7 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
         {/* Code Input Section */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            لديك كود تفعيل؟ أدخله هنا:
+            لديك كود شحن (10/20/100 جنيه)؟ أدخله هنا:
           </label>
           <div className="flex gap-2">
             <input
@@ -171,7 +198,7 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
               disabled={!inputCode}
               className="bg-gray-800 text-white px-5 rounded-lg font-bold hover:bg-gray-900 transition disabled:opacity-50"
             >
-              تفعيل
+              شحن
             </button>
           </div>
           
@@ -192,7 +219,7 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
 
         {/* Pricing & Contact Section */}
         <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-          <h4 className="font-bold text-gray-900 mb-3 text-sm">باقات الشحن المتوفرة:</h4>
+          <h4 className="font-bold text-gray-900 mb-3 text-sm">باقات الشحن الإضافية:</h4>
           <ul className="space-y-2 mb-4 text-sm">
             <li className="flex justify-between border-b border-gray-200 pb-1">
               <span>💎 باقة التوفير (10 مشاريع)</span>

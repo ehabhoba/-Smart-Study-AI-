@@ -154,6 +154,20 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
   const stopPlaybackRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll to highlighted text during TTS
+  useEffect(() => {
+    if (highlightedText && contentRef.current) {
+      // Use a small timeout to allow React to render the <mark> element before scrolling
+      const timer = setTimeout(() => {
+        const markedElement = contentRef.current?.querySelector('mark');
+        if (markedElement) {
+          markedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedText]);
+
   const getActiveContent = () => {
     switch (activeTab) {
       case 'overview': return result.overview;
