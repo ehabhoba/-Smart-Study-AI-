@@ -2,6 +2,7 @@ export interface StudyAnalysisResult {
   overview: string;
   summary: string;
   qa: string;
+  extractedImages?: string[]; // Array of Base64 image strings extracted from the file
 }
 
 export enum SummaryType {

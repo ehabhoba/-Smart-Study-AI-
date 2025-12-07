@@ -20,6 +20,7 @@ const App: React.FC = () => {
 
   const [sourceText, setSourceText] = useState<string>('');
   const [sourceImage, setSourceImage] = useState<{ data: string, mimeType: string } | null>(null);
+  const [extractedFileImages, setExtractedFileImages] = useState<string[]>([]); // New state for images from files
   const [fileName, setFileName] = useState<string>('');
   const [status, setStatus] = useState<ProcessingStatus>({ step: 'idle', message: '', progress: 0 });
   const [analysisResult, setAnalysisResult] = useState<StudyAnalysisResult | null>(null);
@@ -48,9 +49,10 @@ const App: React.FC = () => {
   // Handlers
   const handleFileLoaded = useCallback(async (file: File) => {
     setFileName(file.name);
-    setStatus({ step: 'extracting', message: 'جاري قراءة الملف...', progress: 10 });
+    setStatus({ step: 'extracting', message: 'جاري قراءة الملف واستخراج الصور...', progress: 10 });
     setSourceText('');
     setSourceImage(null);
+    setExtractedFileImages([]);
     
     try {
       if (file.type.startsWith('image/')) {
@@ -64,9 +66,10 @@ const App: React.FC = () => {
         };
         reader.readAsDataURL(file);
       } else if (file.name.endsWith('.pptx') || file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
-        const text = await extractTextFromPPTX(file);
+        const { text, images } = await extractTextFromPPTX(file);
         setSourceText(text);
-        setStatus({ step: 'idle', message: 'تم استخراج النص بنجاح', progress: 30 });
+        setExtractedFileImages(images);
+        setStatus({ step: 'idle', message: `تم استخراج النص و ${images.length} صورة بنجاح`, progress: 30 });
       } else if (file.type === 'application/pdf') {
         const text = await extractTextFromPDF(file);
         setSourceText(text);
@@ -90,27 +93,50 @@ const App: React.FC = () => {
       return;
     }
 
-    setStatus({ step: 'analyzing', message: 'جاري تحليل المحتوى وتلخيصه...', progress: 50 });
+    // Initial status
+    setStatus({ step: 'analyzing', message: 'بدء التحليل الذكي للهيكل العام...', progress: 40 });
+
+    const progressInterval = setInterval(() => {
+      setStatus(prev => {
+        if (prev.step !== 'analyzing') return prev;
+        
+        const newProgress = Math.min(prev.progress + 1, 98);
+        
+        // Dynamic messages based on progress to keep user engaged
+        let newMessage = prev.message;
+        if (newProgress > 45 && newProgress < 60) newMessage = 'جاري استخراج المفاهيم الأساسية والمصطلحات...';
+        else if (newProgress >= 60 && newProgress < 75) newMessage = 'جاري رسم المخططات الهندسية والبيانية (Mermaid)...';
+        else if (newProgress >= 75 && newProgress < 85) newMessage = 'جاري صياغة أسئلة المراجعة الذكية...';
+        else if (newProgress >= 85 && newProgress < 95) newMessage = 'يتم تجميع وتنسيق الملخص النهائي...';
+        else if (newProgress >= 95) newMessage = 'لمسات أخيرة...';
+
+        return { ...prev, progress: newProgress, message: newMessage };
+      });
+    }, 800);
 
     try {
-      // Simulate progress updates for UX
-      const progressInterval = setInterval(() => {
-        setStatus(prev => {
-          if (prev.step !== 'analyzing') return prev;
-          return { ...prev, progress: Math.min(prev.progress + 5, 90) };
-        });
-      }, 1000);
-
-      const result = await analyzeText(apiKey, { text: sourceText, image: sourceImage }, summaryType, maxSections);
+      const result = await analyzeText(
+        apiKey, 
+        { text: sourceText, image: sourceImage }, 
+        summaryType, 
+        maxSections,
+        extractedFileImages.length // Pass count so Gemini knows about them
+      );
+      
+      // Merge extracted images into result
+      if (extractedFileImages.length > 0) {
+        result.extractedImages = extractedFileImages;
+      }
       
       clearInterval(progressInterval);
       setAnalysisResult(result);
-      setStatus({ step: 'completed', message: 'تم التحليل بنجاح!', progress: 100 });
+      setStatus({ step: 'completed', message: 'تم التحليل والتطوير بنجاح!', progress: 100 });
     } catch (error: any) {
+      clearInterval(progressInterval);
       console.error(error);
       setStatus({ step: 'error', message: `حدث خطأ أثناء التحليل: ${error.message}`, progress: 0 });
     }
-  }, [apiKey, sourceText, sourceImage, summaryType, maxSections]);
+  }, [apiKey, sourceText, sourceImage, summaryType, maxSections, extractedFileImages]);
 
   const handleDeepDive = useCallback(async (term: string) => {
     setDeepDiveTerm(term);
@@ -155,7 +181,7 @@ const App: React.FC = () => {
             <div>
               <h2 className="text-xl font-bold mb-4 text-blue-800 flex items-center gap-2">
                 <BookOpen className="w-5 h-5" />
-                2. إعدادات التلخيص
+                2. إعدادات التلخيص والرسم
               </h2>
               
               <div className="mb-4">
@@ -168,7 +194,7 @@ const App: React.FC = () => {
                 >
                   <option value={SummaryType.EXAM}>🚀 تلخيص مكثف (Exam Capsule)</option>
                   <option value={SummaryType.MEDIUM}>📖 تلخيص متوسط (المفاهيم الأساسية)</option>
-                  <option value={SummaryType.FULL}>🎓 تلخيص شامل (تفصيلي)</option>
+                  <option value={SummaryType.FULL}>🎓 تلخيص شامل (تفصيلي وهندسي)</option>
                 </select>
               </div>
 
@@ -193,7 +219,7 @@ const App: React.FC = () => {
                 ${((!sourceText && !sourceImage) || !apiKey) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}
               `}
             >
-               <span>✨ ابدأ التحليل والتلخيص</span>
+               <span>✨ ابدأ التحليل وتوليد الرسومات</span>
             </button>
           </div>
         </div>

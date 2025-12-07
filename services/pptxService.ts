@@ -1,10 +1,33 @@
 import JSZip from 'jszip';
 
-export const extractTextFromPPTX = async (file: File): Promise<string> => {
+export const extractTextFromPPTX = async (file: File): Promise<{ text: string, images: string[] }> => {
     const zip = new JSZip();
     try {
         const content = await zip.loadAsync(file);
         
+        // 1. Extract Images from ppt/media
+        const images: string[] = [];
+        const mediaFolder = content.folder("ppt/media");
+        
+        if (mediaFolder) {
+            const imageFiles = Object.keys(mediaFolder.files).filter(fileName => 
+                fileName.match(/\.(jpg|jpeg|png|webp)$/i)
+            );
+            
+            // Limit to top 15 images to prevent memory issues
+            const processedImages = imageFiles.slice(0, 15);
+
+            for (const imgFileName of processedImages) {
+                const fileData = await mediaFolder.file(imgFileName.replace("ppt/media/", ""))?.async("base64");
+                if (fileData) {
+                    const ext = imgFileName.split('.').pop()?.toLowerCase();
+                    const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+                    images.push(`data:${mimeType};base64,${fileData}`);
+                }
+            }
+        }
+
+        // 2. Extract Text
         // Find all slide XML files
         const slideFiles = Object.keys(content.files).filter(fileName => 
             fileName.startsWith('ppt/slides/slide') && fileName.endsWith('.xml')
@@ -45,7 +68,10 @@ export const extractTextFromPPTX = async (file: File): Promise<string> => {
             }
         }
 
-        return extractedText || "لم يتم العثور على نص قابل للاستخراج في الشرائح.";
+        return { 
+            text: extractedText || "لم يتم العثور على نص قابل للاستخراج في الشرائح.",
+            images 
+        };
 
     } catch (error) {
         console.error("PPTX Parsing Error:", error);
