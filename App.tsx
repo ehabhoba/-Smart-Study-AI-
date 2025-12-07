@@ -5,11 +5,12 @@ import { FileUpload } from './components/FileUpload';
 import { ProcessingArea } from './components/ProcessingArea';
 import { ResultsDisplay } from './components/ResultsDisplay';
 import { DeepDivePanel } from './components/DeepDivePanel';
+import { SeoContent } from './components/SeoContent';
 import { extractTextFromPDF } from './services/pdfService';
 import { extractTextFromPPTX } from './services/pptxService';
 import { analyzeText, explainConcept } from './services/geminiService';
 import { StudyAnalysisResult, SummaryType, ProcessingStatus, DeepDiveResponse, ComplexityLevel } from './types';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Github, Globe } from 'lucide-react';
 
 const App: React.FC = () => {
   // State
@@ -239,6 +240,9 @@ const App: React.FC = () => {
         )}
       </main>
 
+      {/* SEO Content Section (Blog/Articles) */}
+      <SeoContent />
+
       <DeepDivePanel 
         isOpen={isDeepDiveOpen} 
         onClose={() => setIsDeepDiveOpen(false)}
@@ -250,6 +254,25 @@ const App: React.FC = () => {
         complexity={deepDiveComplexity}
         setComplexity={setDeepDiveComplexity}
       />
+
+      {/* SEO Footer */}
+      <footer className="bg-gray-100 border-t border-gray-200 py-8 mt-12 text-center text-gray-500 text-sm">
+        <div className="container mx-auto px-4">
+          <p className="mb-4">
+            المُلخص الدراسي الذكي © 2024 - مدعوم بواسطة Google Gemini 2.5 Flash
+          </p>
+          <div className="flex justify-center gap-4 mb-6">
+            <span className="flex items-center gap-1 hover:text-blue-600 transition"><Globe size={16} /> تلخيص PDF</span>
+            <span className="flex items-center gap-1 hover:text-blue-600 transition"><BookOpen size={16} /> شرح مناهج</span>
+            <span className="flex items-center gap-1 hover:text-blue-600 transition"><Github size={16} /> ذكاء اصطناعي</span>
+          </div>
+          <p className="max-w-2xl mx-auto text-xs leading-relaxed text-gray-400">
+            هذه الأداة تستخدم الذكاء الاصطناعي لتحليل الكتب الدراسية (PDF/PPTX) واستخراج المعلومات الهامة. 
+            تساعد الطلاب في المذاكرة، تلخيص المناهج، حل الأسئلة، ورسم الخرائط الذهنية والمخططات الهندسية.
+            الكلمات المفتاحية: تلخيص كتب، شرح دروس، ذكاء اصطناعي للتعليم، Smart Study AI، Gemini API.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };

@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://tool-v1.5199.online/sitemap.xml
