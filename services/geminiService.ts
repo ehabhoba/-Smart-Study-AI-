@@ -3,15 +3,24 @@ import { StudyAnalysisResult, SummaryType, DeepDiveResponse, ComplexityLevel } f
 
 /**
  * Helper to clean JSON string from Markdown code blocks and extraneous text.
+ * Also handles common JSON syntax errors like trailing commas.
  */
 function cleanJson(text: string): string {
+  // 1. Remove Markdown code blocks
   let cleaned = text.replace(/```json\s*|```/g, '').trim();
+  
+  // 2. Locate the JSON object
   const firstBrace = cleaned.indexOf('{');
   const lastBrace = cleaned.lastIndexOf('}');
   
   if (firstBrace !== -1 && lastBrace !== -1) {
     cleaned = cleaned.substring(firstBrace, lastBrace + 1);
   }
+
+  // 3. Remove trailing commas (Common AI generation error: {"key": "value",})
+  // This regex finds a comma followed immediately by a closing brace or bracket, ignoring whitespace
+  cleaned = cleaned.replace(/,(\s*[}\]])/g, '$1');
+
   return cleaned;
 }
 
@@ -116,6 +125,11 @@ export const analyzeText = async (
     } catch (e) {
       console.error("JSON Parsing Error", e);
       console.log("Raw Text:", response.text);
+      // Fallback: If parsing fails, try to return a basic error object so the app doesn't crash
+      if (response.text.includes("overview")) {
+         // A very desperate fallback or just throw clearer error
+         throw new Error("حدث خطأ في تنسيق البيانات المستلمة (JSON Syntax). حاول مرة أخرى.");
+      }
       throw new Error("فشل في تحليل استجابة الذكاء الاصطناعي (JSON Error).");
     }
   }
