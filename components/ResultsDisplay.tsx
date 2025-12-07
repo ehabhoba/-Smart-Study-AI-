@@ -37,10 +37,24 @@ const MermaidChart = ({ chart, onInteract }: { chart: string, onInteract?: (term
     renderChart();
   }, [chart, id]);
 
-  // Add interaction listeners to nodes
+  // Handle responsiveness and interactions
   useEffect(() => {
-    if (!containerRef.current || !onInteract || isError) return;
+    if (!containerRef.current || isError) return;
 
+    const svgElement = containerRef.current.querySelector('svg');
+    if (svgElement) {
+      // 1. Make Responsive
+      svgElement.style.width = '100%';
+      svgElement.style.maxWidth = '100%';
+      svgElement.style.height = 'auto';
+      // Ensure viewBox is preserved (mermaid usually sets it) but override width/height attributes
+      svgElement.removeAttribute('height'); 
+      // We keep viewBox to ensure aspect ratio scaling
+    }
+
+    if (!onInteract) return;
+
+    // 2. Add Interactions
     // Enhanced selector to cover more diagram types:
     // .node (Flowchart)
     // .actor (Sequence)
@@ -104,10 +118,10 @@ const MermaidChart = ({ chart, onInteract }: { chart: string, onInteract?: (term
   }
 
   return (
-    <div className="flex flex-col items-center my-8">
+    <div className="flex flex-col items-center my-8 w-full">
         <div 
             ref={containerRef}
-            className="w-full p-6 bg-white rounded-lg border border-gray-200 shadow-sm overflow-x-auto flex justify-center" 
+            className="mermaid-wrapper w-full p-4 md:p-6 bg-white rounded-lg border border-gray-200 shadow-sm overflow-x-auto flex justify-center" 
             dangerouslySetInnerHTML={{ __html: svg }} 
         />
         <p className="text-xs text-gray-400 mt-2 flex items-center gap-1.5 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100">
@@ -440,7 +454,7 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
                 )}
              </div>
           ) : (
-            <div className={`markdown-body tab-${activeTab}`}>
+            <div className={`markdown-body tab-${activeTab} font-[Arial,sans-serif]`}>
               {getActiveContent() ? (
                 <ReactMarkdown 
                   remarkPlugins={[remarkGfm]}
@@ -458,6 +472,28 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
                           {children}
                         </mark>
                       );
+                    },
+                    img({node, src, alt, className, ...props}: any) {
+                        let imageSrc = src;
+                        // Check if src is an index reference to extractedImages (e.g. "0", "1")
+                        if (result.extractedImages && /^\d+$/.test(src)) {
+                            const index = parseInt(src, 10);
+                            if (index >= 0 && index < result.extractedImages.length) {
+                                imageSrc = result.extractedImages[index];
+                            }
+                        }
+                        
+                        return (
+                            <figure className="my-6 text-center">
+                                <img 
+                                    src={imageSrc} 
+                                    alt={alt || 'صورة توضيحية'} 
+                                    className="max-w-full h-auto rounded-lg shadow-md mx-auto border border-gray-100" 
+                                    loading="lazy"
+                                />
+                                {alt && <figcaption className="text-sm text-gray-500 mt-2 italic">{alt}</figcaption>}
+                            </figure>
+                        );
                     }
                   }}
                 >

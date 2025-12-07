@@ -36,13 +36,13 @@ export const analyzeText = async (
   let summaryInstructions = "";
   switch (summaryType) {
     case SummaryType.EXAM:
-      summaryInstructions = "Focus ONLY on critical exam definitions, formulas, and key takeaways. Ignore filler text.";
+      summaryInstructions = "Strictly focus on exam-critical content: Definitions, Theorems, Laws, Dates, and Formulas. Exclude introductions and filler text.";
       break;
     case SummaryType.MEDIUM:
-      summaryInstructions = "Provide a balanced summary explaining main concepts clearly with examples.";
+      summaryInstructions = "Provide a balanced professional summary. Explain core concepts clearly, provide examples, and highlight key takeaways.";
       break;
     case SummaryType.FULL:
-      summaryInstructions = "Provide a comprehensive, detailed analysis covering every chapter and section thoroughly.";
+      summaryInstructions = "Produce a comprehensive, master-level reference. Cover every chapter, section, and nuance. Include detailed derivations and extensive data analysis.";
       break;
   }
 
@@ -51,47 +51,60 @@ export const analyzeText = async (
   }
 
   const systemPrompt = `
-    You are an elite Educational Consultant and Systems Architect. Your task is to analyze study materials and generate high-quality, structured study guides.
-
-    **CORE INSTRUCTION - LANGUAGE DETECTION:**
-    1. **DETECT** the dominant language of the user's input content (Text/Images).
-    2. **GENERATE ALL OUTPUT strictly in that SAME LANGUAGE**.
-       - If input is Arabic -> Output MUST be Arabic.
-       - If input is English -> Output MUST be English.
-       - If input is French -> Output MUST be French.
+    You are an **Elite Polymath Academic Consultant**. Your capability extends across all disciplines: **Mathematics, Applied Sciences, History, Geography, Economics, Literature, and Linguistics**.
+    
+    **CORE DIRECTIVE: STRICT LANGUAGE MIRRORING**
+    - Detect the dominant language of the input (Arabic, English, French, Spanish, etc.).
+    - **ALL OUTPUT** (Summary, Overview, Q&A, Chart Labels) **MUST BE** in that **SAME LANGUAGE**.
+    - Do not translate unless explicitly asked. If input is Arabic, output Arabic.
 
     **Task Objectives:**
-    1. **Analyze** the provided content (text/images).
-    2. **Generate** a ${summaryType} summary based on these instructions: ${summaryInstructions}.
-    3. **Format** the output professionally using Markdown.
+    1. **Deep Analysis:** Analyze the provided text/images with Ph.D. level precision.
+    2. **Generate Output:** Create a structured study guide based on: "${summaryType}".
+    3. **Professional Formatting:** Use advanced Markdown to create a visually stunning document.
 
-    **Formatting Rules (Strictly Follow):**
-    - Use **Bold** for key terms and definitions.
-    - Use *Italic* for emphasis.
-    - Use Tables for comparisons or structured data lists.
-    - Use Bullet points for readability.
-    - Use H2 (##) for Main Sections and H3 (###) for Subsections.
-    - Add emojis to section headers to make it engaging (e.g., 📌, 💡, ⚙️).
+    **DOMAIN-SPECIFIC HANDLING RULES:**
 
-    **3. Engineering & Diagrams (Mermaid.js):**
-    - You MUST generate **Mermaid.js** code for visual representation.
-    - Identify systems, processes, or hierarchies in the text.
-    - Use:
-      * **Class Diagram** (classDiagram) for object-oriented or structural data.
-      * **Sequence Diagram** (sequenceDiagram) for interactions/processes.
-      * **State Diagram** (stateDiagram-v2) for lifecycle/states.
-      * **ER Diagram** (erDiagram) for databases/relationships.
-      * **Mindmap** or **Flowchart** (graph TD) for general concepts.
-    - **CRITICAL**: All text inside Mermaid nodes MUST be in the **SAME LANGUAGE** as the input.
-    - **CRITICAL**: All text inside Mermaid nodes MUST be wrapped in double quotes "". Example: A["النص هنا"]
+    🧮 **MATHEMATICS & PHYSICS:**
+    - Render formulas clearly using standard text notation or simple LaTeX if needed (e.g., E = mc², a² + b² = c²).
+    - Show **step-by-step** solutions for examples found in the text.
+    - Highlight variables and constants in **Bold**.
+    - Ensure symbols (∫, ∑, ∂, π, θ, ∞) are used correctly.
 
-    **4. Q&A Section:**
-    - Generate smart, high-value review questions.
-    - Format: Question (H3), Answer (Blockquote).
+    🌍 **HISTORY & GEOGRAPHY:**
+    - For History: Construct **Chronological Timelines** using lists. Link causes to effects.
+    - For Geography: Describe spatial relationships. If coordinates or locations are mentioned, list them clearly.
+    - Use "Callout Boxes" (Blockquotes) for key dates and figures.
 
-    ${extractedImagesCount ? `Note: ${extractedImagesCount} images were extracted from the source file. Reference them in the summary if relevant (e.g., "See Figure 1").` : ''}
-    
-    **Output Format:** JSON object containing 'overview', 'summary', and 'qa'.
+    💰 **ECONOMICS & DATA:**
+    - Preserve all currency symbols ($, €, £, EGP, SAR, AED) and numerical formats exactly.
+    - **MANDATORY:** Use **Markdown Tables** to compare data, years, prices, or statistics. Never list data in paragraphs if a table is possible.
+
+    💻 **PROGRAMMING & TECHNICAL:**
+    - Use Code Blocks for any code snippets.
+    - Explain algorithms using step-by-step logic.
+
+    **FORMATTING STANDARDS (The "Golden Rules"):**
+    - **Headers:** Use Emoji prefixes for H2 and H3 (e.g., 📊 **Analysis**, 🏛 **History**, 🧪 **Formula**).
+    - **Tables:** Use them aggressively for comparisons.
+    - **Visuals:** Use **Mermaid.js** for EVERY complex concept.
+      - *History:* Use \`timeline\` or \`mindmap\`.
+      - *Process:* Use \`graph TD\` or \`sequenceDiagram\`.
+      - *Structure:* Use \`classDiagram\`.
+      - *Database:* Use \`erDiagram\`.
+      - *State:* Use \`stateDiagram-v2\`.
+    - **Mermaid Rules:** All text inside diagrams must be in the **Detected Language**. All text in nodes must be wrapped in quotes (e.g., A["النص العربي"]).
+
+    ${extractedImagesCount ? `**IMAGE INTEGRATION:**
+    - ${extractedImagesCount} images have been extracted from the source file.
+    - You **MUST** integrate them into the summary where they are logically relevant.
+    - Use the syntax: \`![Figure X description](index)\` where index is 0, 1, 2...
+    - Example: "As shown in the diagram below:\n\n![Market Trend Graph](0)"` : ''}
+
+    **Output Structure (JSON):**
+    - **overview**: A professional executive summary (Subject, Level, Core Topics).
+    - **summary**: The main body. Rich Markdown. Tables. Mermaid Charts. Formulas.
+    - **qa**: 5-10 High-Quality Review Questions (Mix of Definitions, Problem Solving, and Critical Thinking) with Answers.
   `;
 
   const userContentParts: any[] = [{ text: systemPrompt }];
@@ -103,14 +116,13 @@ export const analyzeText = async (
         data: content.image.data
       }
     });
-    userContentParts.push({ text: "Analyze this image and include its content in the summary." });
+    userContentParts.push({ text: "Analyze this image in detail. Read all numbers, symbols, and text. Describe charts/graphs if present." });
   }
   
   if (content.text) {
-    userContentParts.push({ text: `Source Content:\n${content.text.substring(0, 500000)}` });
+    userContentParts.push({ text: `Source Content to Analyze:\n${content.text.substring(0, 500000)}` });
   }
 
-  // We use Schema to ensure JSON output structure
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: [
@@ -121,9 +133,9 @@ export const analyzeText = async (
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          overview: { type: Type.STRING, description: "General overview of the material (subject, level, main topic) in the detected language." },
-          summary: { type: Type.STRING, description: "The detailed Markdown summary including Mermaid diagrams in the detected language." },
-          qa: { type: Type.STRING, description: "Review questions and answers in Markdown format in the detected language." },
+          overview: { type: Type.STRING, description: "Professional executive overview in detected language." },
+          summary: { type: Type.STRING, description: "The comprehensive Markdown analysis including tables, math, and diagrams." },
+          qa: { type: Type.STRING, description: "Exam-style Q&A section with answers." },
         },
         required: ["overview", "summary", "qa"],
       },
@@ -136,11 +148,8 @@ export const analyzeText = async (
       return JSON.parse(cleanedJson) as StudyAnalysisResult;
     } catch (e) {
       console.error("JSON Parsing Error", e);
-      console.log("Raw Text:", response.text);
-      if (response.text.includes("overview")) {
-         throw new Error("Formatting error in AI response. Please try again.");
-      }
-      throw new Error("Failed to analyze content. Please try again.");
+      // Fallback or retry logic could go here
+      throw new Error("Failed to process the AI response. The analysis might be too complex or the file content is unclear.");
     }
   }
 
@@ -158,29 +167,33 @@ export const explainConcept = async (
   let complexityPrompt = "";
   switch (complexity) {
     case ComplexityLevel.BASIC:
-      complexityPrompt = "Explain in very simple terms (EL15).";
+      complexityPrompt = "Explain simply (EL5). Use analogies.";
       break;
     case ComplexityLevel.INTERMEDIATE:
-      complexityPrompt = "Explain in a standard academic tone.";
+      complexityPrompt = "Explain academically. Define terms and give context.";
       break;
     case ComplexityLevel.ADVANCED:
-      complexityPrompt = "Explain with technical depth and advanced terminology.";
+      complexityPrompt = "Explain with high technical depth. Include formulas, dates, or advanced theory.";
       break;
   }
 
   const systemPrompt = `
-    You are an expert tutor.
+    You are an Expert Tutor specialized in accurate definitions.
     
-    **Task:** Explain the concept: "${term}".
-    **Context:** ${context.substring(0, 100000)}
+    **Task:** Deep Dive into the concept: "${term}".
+    **Context:** ${context.substring(0, 50000)}
     
-    **CRITICAL LANGUAGE RULE:** Detect the language of the 'Context' provided. The explanation MUST be in the **SAME LANGUAGE** as the context.
+    **Language Rule:** Output MUST be in the same language as the Context/Term.
 
-    **Requirements:**
+    **Instructions:**
     1. ${complexityPrompt}
-    2. Format using clear Markdown (Bold key terms, use bullet points).
-    3. If applicable, generate a small Mermaid diagram to visualize the concept.
-    4. Suggest 3-5 related terms for further study.
+    2. **Formatting:** Use Bold for keywords. Use bullet points.
+    3. **Domain Specifics:**
+       - If Math: Show the formula and a solved example.
+       - If History: Give the date, key figures, and significance.
+       - If Science: Explain the mechanism/process.
+    4. **Visualization:** Suggest a small Mermaid diagram code if it helps explain (e.g., a small flowchart).
+    5. **Related:** Suggest 4 related concepts.
   `;
 
   const response = await ai.models.generateContent({
@@ -193,12 +206,8 @@ export const explainConcept = async (
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          explanation: { type: Type.STRING, description: "Detailed Markdown explanation in the same language as context." },
-          relatedTerms: { 
-            type: Type.ARRAY, 
-            items: { type: Type.STRING },
-            description: "List of related terms in the same language." 
-          }
+          explanation: { type: Type.STRING, description: "Rich markdown explanation." },
+          relatedTerms: { type: Type.ARRAY, items: { type: Type.STRING } }
         },
         required: ["explanation", "relatedTerms"]
       }
