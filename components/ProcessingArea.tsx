@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, FileText, Brain, CheckCircle, AlertCircle } from 'lucide-react';
 import { ProcessingStatus } from '../types';
 
 interface Props {
@@ -7,20 +7,105 @@ interface Props {
 }
 
 export const ProcessingArea: React.FC<Props> = ({ status }) => {
+  // Define discrete steps for the process
+  const steps = [
+    { id: 'extracting', label: 'قراءة الملف', icon: FileText },
+    { id: 'analyzing', label: 'التحليل الذكي', icon: Brain },
+    { id: 'completed', label: 'النتائج', icon: CheckCircle },
+  ];
+
+  // Determine current active index based on status.step
+  let activeIndex = 0;
+  if (status.step === 'extracting') activeIndex = 0;
+  if (status.step === 'analyzing') activeIndex = 1;
+  if (status.step === 'completed') activeIndex = 2;
+  
+  const isError = status.step === 'error';
+
   return (
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 mb-6 text-center animate-pulse">
-      <div className="flex flex-col items-center justify-center">
-        <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
-        <h3 className="font-bold text-blue-800 text-xl mb-2">{status.message}</h3>
-        
-        <div className="w-full bg-gray-200 rounded-full h-3 mt-4 max-w-lg overflow-hidden">
-          <div 
-            className="bg-blue-600 h-3 rounded-full transition-all duration-500 ease-out" 
-            style={{ width: `${status.progress}%` }}
-          ></div>
+    <div className={`bg-white border rounded-xl p-8 mb-6 shadow-sm transition-all duration-300 ${isError ? 'border-red-200 bg-red-50' : 'border-blue-100'}`}>
+      
+      {/* Error View */}
+      {isError ? (
+        <div className="flex flex-col items-center text-center text-red-600 animate-in fade-in zoom-in duration-300">
+          <div className="bg-red-100 p-4 rounded-full mb-4">
+             <AlertCircle size={40} className="text-red-600" />
+          </div>
+          <h3 className="text-xl font-bold mb-2">حدث خطأ أثناء المعالجة</h3>
+          <p className="text-gray-700 max-w-md">{status.message}</p>
         </div>
-        <p className="text-sm text-blue-600 mt-2 font-mono">{status.progress}%</p>
-      </div>
+      ) : (
+        /* Progress Stepper View */
+        <div className="flex flex-col items-center w-full">
+            
+          {/* Stepper Header */}
+          <div className="flex items-center justify-between w-full max-w-3xl mb-10 relative px-4">
+             {/* Connection Line Background */}
+             <div className="absolute top-1/2 left-0 right-0 h-1 bg-gray-100 -z-10 -translate-y-1/2 rounded mx-10"></div>
+             
+             {/* Connection Line Progress */}
+             <div 
+               className="absolute top-1/2 left-0 h-1 bg-blue-500 -z-10 -translate-y-1/2 rounded transition-all duration-700 ease-in-out mx-10"
+               style={{ width: `calc(${(activeIndex / (steps.length - 1)) * 100}% - 5rem)` }}
+             ></div>
+
+             {steps.map((step, index) => {
+               const isActive = index === activeIndex;
+               const isCompleted = index < activeIndex;
+               const isPending = index > activeIndex;
+
+               return (
+                 <div key={step.id} className="flex flex-col items-center bg-white px-2 relative z-10 min-w-[100px]">
+                   <div className={`
+                     w-14 h-14 rounded-full flex items-center justify-center mb-3 transition-all duration-500 border-4 shadow-sm
+                     ${isCompleted ? 'bg-green-500 border-green-500 text-white' : ''}
+                     ${isActive ? 'bg-white border-blue-500 text-blue-600 scale-110 shadow-blue-200' : ''}
+                     ${isPending ? 'bg-gray-50 border-gray-200 text-gray-300' : ''}
+                   `}>
+                     {isCompleted ? (
+                       <CheckCircle size={24} className="animate-in zoom-in duration-300" />
+                     ) : isActive ? (
+                       <step.icon size={24} className={status.step !== 'completed' ? 'animate-pulse' : ''} />
+                     ) : (
+                       <step.icon size={24} />
+                     )}
+                   </div>
+                   <span className={`text-sm font-bold transition-colors duration-300 ${isActive ? 'text-blue-800 scale-105' : isCompleted ? 'text-green-700' : 'text-gray-400'}`}>
+                     {step.label}
+                   </span>
+                 </div>
+               );
+             })}
+          </div>
+
+          {/* Current Status Message & Spinner */}
+          <div className="flex flex-col items-center animate-in slide-in-from-bottom-2 fade-in duration-500 w-full max-w-md">
+            <div className="flex items-center gap-3 mb-6 bg-blue-50 px-6 py-3 rounded-full text-blue-800 border border-blue-100">
+               {status.step !== 'completed' && <Loader2 size={20} className="animate-spin text-blue-600" />}
+               <span className="font-semibold">{status.message}</span>
+            </div>
+            
+            {/* Detailed Progress Bar */}
+            {status.step !== 'completed' && (
+                <div className="w-full">
+                    <div className="flex justify-between text-xs text-gray-500 mb-2 font-medium">
+                        <span>التقدم</span>
+                        <span>{status.progress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden shadow-inner">
+                        <div 
+                            className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-300 ease-out relative" 
+                            style={{ width: `${status.progress}%` }}
+                        >
+                            <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite] skew-x-12"></div>
+                        </div>
+                    </div>
+                </div>
+            )}
+          </div>
+
+        </div>
+      )}
     </div>
   );
 };

@@ -44,10 +44,39 @@ async function decodeAudioData(
   }
 }
 
+// Track the current source to allow stopping it globally
+let currentAudioContext: AudioContext | null = null;
+let currentSource: AudioBufferSourceNode | null = null;
+
+/**
+ * Stops the currently playing audio if any.
+ */
+export const stopAudio = () => {
+  if (currentSource) {
+    try {
+      currentSource.stop();
+    } catch (e) {
+      // Ignore errors if already stopped
+    }
+    currentSource = null;
+  }
+  if (currentAudioContext) {
+    try {
+      currentAudioContext.close();
+    } catch (e) {
+      // Ignore
+    }
+    currentAudioContext = null;
+  }
+};
+
 /**
  * Plays PCM Audio Data from Base64 string.
  */
 export const playAudioFromBase64 = async (base64Audio: string, sampleRate: number = 24000): Promise<void> => {
+  // Stop any previous audio before starting new one
+  stopAudio();
+
   const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
   
   if (!AudioContextClass) {
@@ -59,6 +88,7 @@ export const playAudioFromBase64 = async (base64Audio: string, sampleRate: numbe
   }
 
   const audioContext = new AudioContextClass({ sampleRate });
+  currentAudioContext = audioContext;
 
   try {
     const bytes = decodeBase64(base64Audio);
@@ -67,22 +97,26 @@ export const playAudioFromBase64 = async (base64Audio: string, sampleRate: numbe
     const source = audioContext.createBufferSource();
     source.buffer = audioBuffer;
     source.connect(audioContext.destination);
+    
+    currentSource = source;
     source.start(0);
     
     // Return a promise that resolves when audio finishes
     return new Promise((resolve, reject) => {
         source.onended = () => {
             resolve();
-            audioContext.close().catch(console.error);
+            // Don't close immediately here if we want to chain, 
+            // but for safety in single play we often do. 
+            // In our sequence logic, we might keep context, but here we clean up.
+            currentSource = null; 
         };
         source.onabort = () => {
             resolve(); // Treat stop as resolved
-            audioContext.close().catch(console.error);
         }
     });
 
   } catch (error: any) {
-    await audioContext.close().catch(() => {}); // Ensure cleanup
+    stopAudio(); // Ensure cleanup
     console.error("Error playing audio:", error);
     throw new Error(error.message || "حدث خطأ غير متوقع أثناء تشغيل الصوت.");
   }

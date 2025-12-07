@@ -8,13 +8,18 @@ import { DeepDivePanel } from './components/DeepDivePanel';
 import { extractTextFromPDF } from './services/pdfService';
 import { extractTextFromPPTX } from './services/pptxService';
 import { analyzeText, explainConcept } from './services/geminiService';
-import { StudyAnalysisResult, SummaryType, ProcessingStatus } from './types';
+import { StudyAnalysisResult, SummaryType, ProcessingStatus, DeepDiveResponse, ComplexityLevel } from './types';
 import { BookOpen } from 'lucide-react';
 
 const App: React.FC = () => {
   // State
-  const [apiKey, setApiKey] = useState<string>('');
+  // Initialize API Key from LocalStorage if available
+  const [apiKey, setApiKey] = useState<string>(() => {
+    return localStorage.getItem('gemini_api_key') || '';
+  });
+
   const [sourceText, setSourceText] = useState<string>('');
+  const [sourceImage, setSourceImage] = useState<{ data: string, mimeType: string } | null>(null);
   const [fileName, setFileName] = useState<string>('');
   const [status, setStatus] = useState<ProcessingStatus>({ step: 'idle', message: '', progress: 0 });
   const [analysisResult, setAnalysisResult] = useState<StudyAnalysisResult | null>(null);
@@ -26,26 +31,49 @@ const App: React.FC = () => {
   // Deep Dive State
   const [isDeepDiveOpen, setIsDeepDiveOpen] = useState(false);
   const [deepDiveTerm, setDeepDiveTerm] = useState('');
-  const [deepDiveResult, setDeepDiveResult] = useState<string>('');
+  const [deepDiveResult, setDeepDiveResult] = useState<DeepDiveResponse | null>(null);
   const [isDeepDiveLoading, setIsDeepDiveLoading] = useState(false);
+  const [deepDiveComplexity, setDeepDiveComplexity] = useState<ComplexityLevel>(ComplexityLevel.INTERMEDIATE);
+
+  // API Key Handlers with LocalStorage Persistence
+  const handleSetApiKey = (key: string) => {
+    setApiKey(key);
+    if (key) {
+      localStorage.setItem('gemini_api_key', key);
+    } else {
+      localStorage.removeItem('gemini_api_key');
+    }
+  };
 
   // Handlers
   const handleFileLoaded = useCallback(async (file: File) => {
     setFileName(file.name);
     setStatus({ step: 'extracting', message: 'جاري قراءة الملف...', progress: 10 });
+    setSourceText('');
+    setSourceImage(null);
     
     try {
-      let text = '';
-      if (file.name.endsWith('.pptx') || file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
-        text = await extractTextFromPPTX(file);
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const result = e.target?.result as string;
+          // Extract base64 data (remove data:image/xxx;base64, prefix)
+          const base64Data = result.split(',')[1];
+          setSourceImage({ data: base64Data, mimeType: file.type });
+          setStatus({ step: 'idle', message: 'تم تحميل الصورة بنجاح', progress: 30 });
+        };
+        reader.readAsDataURL(file);
+      } else if (file.name.endsWith('.pptx') || file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
+        const text = await extractTextFromPPTX(file);
+        setSourceText(text);
+        setStatus({ step: 'idle', message: 'تم استخراج النص بنجاح', progress: 30 });
       } else if (file.type === 'application/pdf') {
-        text = await extractTextFromPDF(file);
+        const text = await extractTextFromPDF(file);
+        setSourceText(text);
+        setStatus({ step: 'idle', message: 'تم استخراج النص بنجاح', progress: 30 });
       } else {
-        throw new Error('نوع الملف غير مدعوم. يرجى استخدام PDF أو PowerPoint.');
+        throw new Error('نوع الملف غير مدعوم. يرجى استخدام PDF أو PowerPoint أو صور.');
       }
-
-      setSourceText(text);
-      setStatus({ step: 'idle', message: 'تم استخراج النص بنجاح', progress: 30 });
     } catch (error: any) {
       console.error(error);
       setStatus({ step: 'error', message: error.message || 'فشل في قراءة الملف.', progress: 0 });
@@ -57,7 +85,7 @@ const App: React.FC = () => {
       alert('يرجى إدخال مفتاح API');
       return;
     }
-    if (!sourceText) {
+    if (!sourceText && !sourceImage) {
       alert('يرجى رفع ملف صالح أولاً');
       return;
     }
@@ -73,7 +101,7 @@ const App: React.FC = () => {
         });
       }, 1000);
 
-      const result = await analyzeText(apiKey, sourceText, summaryType, maxSections);
+      const result = await analyzeText(apiKey, { text: sourceText, image: sourceImage }, summaryType, maxSections);
       
       clearInterval(progressInterval);
       setAnalysisResult(result);
@@ -82,23 +110,27 @@ const App: React.FC = () => {
       console.error(error);
       setStatus({ step: 'error', message: `حدث خطأ أثناء التحليل: ${error.message}`, progress: 0 });
     }
-  }, [apiKey, sourceText, summaryType, maxSections]);
+  }, [apiKey, sourceText, sourceImage, summaryType, maxSections]);
 
   const handleDeepDive = useCallback(async (term: string) => {
     setDeepDiveTerm(term);
     setIsDeepDiveOpen(true);
-    setDeepDiveResult('');
+    setDeepDiveResult(null);
     setIsDeepDiveLoading(true);
 
     try {
-      const explanation = await explainConcept(apiKey, term, sourceText);
-      setDeepDiveResult(explanation);
+      const result = await explainConcept(apiKey, term, sourceText, deepDiveComplexity);
+      setDeepDiveResult(result);
     } catch (error) {
-      setDeepDiveResult('حدث خطأ أثناء محاولة شرح المفهوم. يرجى المحاولة مرة أخرى.');
+      console.error(error);
+      setDeepDiveResult({
+        explanation: 'حدث خطأ أثناء محاولة شرح المفهوم. يرجى المحاولة مرة أخرى.',
+        relatedTerms: []
+      });
     } finally {
       setIsDeepDiveLoading(false);
     }
-  }, [apiKey, sourceText]);
+  }, [apiKey, sourceText, deepDiveComplexity]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -108,7 +140,7 @@ const App: React.FC = () => {
         
         {/* API Key Section */}
         <section className="mb-8 animate-fade-in-up">
-          <ApiKeyInput apiKey={apiKey} setApiKey={setApiKey} />
+          <ApiKeyInput apiKey={apiKey} setApiKey={handleSetApiKey} />
         </section>
 
         {/* Upload & Config Grid */}
@@ -156,9 +188,9 @@ const App: React.FC = () => {
 
             <button 
               onClick={handleStartProcessing}
-              disabled={!sourceText || !apiKey || status.step === 'analyzing' || status.step === 'extracting'}
+              disabled={(!sourceText && !sourceImage) || !apiKey || status.step === 'analyzing' || status.step === 'extracting'}
               className={`w-full font-bold py-4 rounded-lg shadow transition transform active:scale-95 flex justify-center items-center gap-2
-                ${(!sourceText || !apiKey) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}
+                ${((!sourceText && !sourceImage) || !apiKey) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}
               `}
             >
                <span>✨ ابدأ التحليل والتلخيص</span>
@@ -176,7 +208,7 @@ const App: React.FC = () => {
           <ResultsDisplay 
             result={analysisResult} 
             apiKey={apiKey}
-            onOpenDeepDive={() => setIsDeepDiveOpen(true)}
+            onOpenDeepDive={(term) => term ? handleDeepDive(term) : setIsDeepDiveOpen(true)}
           />
         )}
       </main>
@@ -189,6 +221,8 @@ const App: React.FC = () => {
         result={deepDiveResult}
         isLoading={isDeepDiveLoading}
         onSearch={handleDeepDive}
+        complexity={deepDiveComplexity}
+        setComplexity={setDeepDiveComplexity}
       />
     </div>
   );

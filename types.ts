@@ -10,10 +10,21 @@ export enum SummaryType {
   FULL = 'full',
 }
 
+export enum ComplexityLevel {
+  BASIC = 'basic',
+  INTERMEDIATE = 'intermediate',
+  ADVANCED = 'advanced',
+}
+
 export interface ProcessingStatus {
   step: 'idle' | 'extracting' | 'analyzing' | 'completed' | 'error';
   message: string;
   progress: number;
+}
+
+export interface DeepDiveResponse {
+  explanation: string;
+  relatedTerms: string[];
 }
 
 export interface DeepDiveRequest {
