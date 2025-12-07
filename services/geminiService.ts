@@ -1,6 +1,20 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { StudyAnalysisResult, SummaryType, DeepDiveResponse, ComplexityLevel } from "../types";
 
+/**
+ * Helper to clean JSON string from Markdown code blocks and extraneous text.
+ */
+function cleanJson(text: string): string {
+  let cleaned = text.replace(/```json\s*|```/g, '').trim();
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  
+  if (firstBrace !== -1 && lastBrace !== -1) {
+    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  }
+  return cleaned;
+}
+
 export const analyzeText = async (
   apiKey: string,
   content: { text?: string, image?: { data: string, mimeType: string } },
@@ -96,7 +110,14 @@ export const analyzeText = async (
   });
 
   if (response.text) {
-    return JSON.parse(response.text) as StudyAnalysisResult;
+    try {
+      const cleanedJson = cleanJson(response.text);
+      return JSON.parse(cleanedJson) as StudyAnalysisResult;
+    } catch (e) {
+      console.error("JSON Parsing Error", e);
+      console.log("Raw Text:", response.text);
+      throw new Error("فشل في تحليل استجابة الذكاء الاصطناعي (JSON Error).");
+    }
   }
 
   throw new Error("لم يتم استلام رد صالح من النموذج.");
@@ -157,7 +178,13 @@ export const explainConcept = async (
   });
 
   if (response.text) {
-    return JSON.parse(response.text) as DeepDiveResponse;
+    try {
+      const cleanedJson = cleanJson(response.text);
+      return JSON.parse(cleanedJson) as DeepDiveResponse;
+    } catch (e) {
+      console.error("JSON Parsing Error", e);
+      throw new Error("عذراً، لم أتمكن من توليد الشرح (JSON Error).");
+    }
   }
   
   throw new Error("عذراً، لم أتمكن من توليد الشرح.");
