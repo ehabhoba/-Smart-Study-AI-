@@ -1,13 +1,14 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Upload, FileText, Presentation } from 'lucide-react';
+import { Upload, FileText, Presentation, X } from 'lucide-react';
 
 interface Props {
   onFileLoaded: (file: File) => void;
   fileName: string;
   disabled: boolean;
+  onClear?: () => void;
 }
 
-export const FileUpload: React.FC<Props> = ({ onFileLoaded, fileName, disabled }) => {
+export const FileUpload: React.FC<Props> = ({ onFileLoaded, fileName, disabled, onClear }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -70,14 +71,14 @@ export const FileUpload: React.FC<Props> = ({ onFileLoaded, fileName, disabled }
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => !disabled && fileInputRef.current?.click()}
+        onClick={() => !disabled && !fileName && fileInputRef.current?.click()}
         className={`
-          border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 cursor-pointer relative h-64 flex flex-col items-center justify-center
+          border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 relative h-64 flex flex-col items-center justify-center
           ${disabled 
             ? 'opacity-50 cursor-not-allowed bg-gray-50 border-gray-300' 
             : isDragging 
-              ? 'bg-blue-100 border-blue-600 scale-[1.02] shadow-lg' 
-              : 'border-blue-300 hover:bg-blue-50 hover:border-blue-500'
+              ? 'bg-blue-100 border-blue-600 scale-[1.02] shadow-lg cursor-copy' 
+              : 'border-blue-300 hover:bg-blue-50 hover:border-blue-500 cursor-pointer'
           }
         `}
       >
@@ -95,12 +96,26 @@ export const FileUpload: React.FC<Props> = ({ onFileLoaded, fileName, disabled }
         </div>
         
         {fileName ? (
-          <div className={`
-            px-4 py-2 rounded-full font-medium inline-flex items-center gap-2
-            ${isPowerPoint ? 'bg-orange-100 text-orange-800' : isImage ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}
-          `}>
-            {isPowerPoint ? <Presentation size={16} /> : isImage ? <FileText size={16} /> : <FileText size={16} />}
-            {fileName}
+          <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-300">
+            <div className={`
+              px-4 py-2 rounded-full font-medium inline-flex items-center gap-2
+              ${isPowerPoint ? 'bg-orange-100 text-orange-800' : isImage ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}
+            `}>
+              {isPowerPoint ? <Presentation size={16} /> : isImage ? <FileText size={16} /> : <FileText size={16} />}
+              {fileName}
+            </div>
+            {onClear && !disabled && (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClear();
+                }}
+                className="p-1.5 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition shadow-sm"
+                title="حذف الملف"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
         ) : (
           <>

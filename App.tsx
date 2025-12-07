@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+
+import React, { useState, useCallback, useEffect } from 'react';
 import { Header } from './components/Header';
 import { ApiKeyInput } from './components/ApiKeyInput';
 import { FileUpload } from './components/FileUpload';
@@ -10,18 +11,33 @@ import { extractTextFromPDF } from './services/pdfService';
 import { extractTextFromPPTX } from './services/pptxService';
 import { analyzeText, explainConcept } from './services/geminiService';
 import { StudyAnalysisResult, SummaryType, ProcessingStatus, DeepDiveResponse, ComplexityLevel } from './types';
-import { BookOpen, Github, Globe } from 'lucide-react';
+import { BookOpen, Github, Globe, Lock } from 'lucide-react';
+import { SubscriptionState } from './config/subscriptionConfig';
 
 const App: React.FC = () => {
-  // State
-  // Initialize API Key from LocalStorage if available
-  const [apiKey, setApiKey] = useState<string>(() => {
-    return localStorage.getItem('gemini_api_key') || '';
+  // Subscription State
+  const [subscription, setSubscription] = useState<SubscriptionState>(() => {
+    const saved = localStorage.getItem('smart_study_sub');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return {
+      hasUsedTrial: false,
+      remainingCredits: 0,
+      currentTier: 0,
+      activeApiKey: ''
+    };
   });
+
+  // Persist subscription changes
+  const updateSubscription = (newState: SubscriptionState) => {
+    setSubscription(newState);
+    localStorage.setItem('smart_study_sub', JSON.stringify(newState));
+  };
 
   const [sourceText, setSourceText] = useState<string>('');
   const [sourceImage, setSourceImage] = useState<{ data: string, mimeType: string } | null>(null);
-  const [extractedFileImages, setExtractedFileImages] = useState<string[]>([]); // New state for images from files
+  const [extractedFileImages, setExtractedFileImages] = useState<string[]>([]);
   const [fileName, setFileName] = useState<string>('');
   const [status, setStatus] = useState<ProcessingStatus>({ step: 'idle', message: '', progress: 0 });
   const [analysisResult, setAnalysisResult] = useState<StudyAnalysisResult | null>(null);
@@ -37,16 +53,6 @@ const App: React.FC = () => {
   const [isDeepDiveLoading, setIsDeepDiveLoading] = useState(false);
   const [deepDiveComplexity, setDeepDiveComplexity] = useState<ComplexityLevel>(ComplexityLevel.INTERMEDIATE);
 
-  // API Key Handlers with LocalStorage Persistence
-  const handleSetApiKey = (key: string) => {
-    setApiKey(key);
-    if (key) {
-      localStorage.setItem('gemini_api_key', key);
-    } else {
-      localStorage.removeItem('gemini_api_key');
-    }
-  };
-
   // Handlers
   const handleFileLoaded = useCallback(async (file: File) => {
     setFileName(file.name);
@@ -54,13 +60,13 @@ const App: React.FC = () => {
     setSourceText('');
     setSourceImage(null);
     setExtractedFileImages([]);
+    setAnalysisResult(null);
     
     try {
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = (e) => {
           const result = e.target?.result as string;
-          // Extract base64 data (remove data:image/xxx;base64, prefix)
           const base64Data = result.split(',')[1];
           setSourceImage({ data: base64Data, mimeType: file.type });
           setStatus({ step: 'idle', message: 'تم تحميل الصورة بنجاح', progress: 30 });
@@ -84,15 +90,42 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const handleClearFile = useCallback(() => {
+    if (window.confirm('هل أنت متأكد من حذف الملف الحالي والنتائج؟')) {
+      setFileName('');
+      setSourceText('');
+      setSourceImage(null);
+      setExtractedFileImages([]);
+      setStatus({ step: 'idle', message: '', progress: 0 });
+      setAnalysisResult(null);
+    }
+  }, []);
+
   const handleStartProcessing = useCallback(async () => {
-    if (!apiKey) {
-      alert('يرجى إدخال مفتاح API');
+    // 1. Check if user has credits
+    if (subscription.remainingCredits <= 0) {
+      alert('عفواً، رصيدك نفذ. يرجى شحن رصيد جديد للمتابعة.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+
+    if (!subscription.activeApiKey) {
+      alert('حدث خطأ في تفعيل الاشتراك. يرجى إعادة إدخال الكود.');
+      return;
+    }
+
     if (!sourceText && !sourceImage) {
       alert('يرجى رفع ملف صالح أولاً');
       return;
     }
+
+    // Deduct 1 credit immediately before processing to prevent abuse
+    // Note: In a real backend app, this would happen server-side.
+    const newCredits = subscription.remainingCredits - 1;
+    updateSubscription({
+      ...subscription,
+      remainingCredits: newCredits
+    });
 
     // Initial status
     setStatus({ step: 'analyzing', message: 'بدء التحليل الذكي للهيكل العام...', progress: 40 });
@@ -103,7 +136,6 @@ const App: React.FC = () => {
         
         const newProgress = Math.min(prev.progress + 1, 98);
         
-        // Dynamic messages based on progress to keep user engaged
         let newMessage = prev.message;
         if (newProgress > 45 && newProgress < 60) newMessage = 'جاري استخراج المفاهيم الأساسية والمصطلحات...';
         else if (newProgress >= 60 && newProgress < 75) newMessage = 'جاري رسم المخططات الهندسية والبيانية (Mermaid)...';
@@ -117,14 +149,13 @@ const App: React.FC = () => {
 
     try {
       const result = await analyzeText(
-        apiKey, 
+        subscription.activeApiKey, // Use the managed key
         { text: sourceText, image: sourceImage }, 
         summaryType, 
         maxSections,
-        extractedFileImages.length // Pass count so Gemini knows about them
+        extractedFileImages.length
       );
       
-      // Merge extracted images into result
       if (extractedFileImages.length > 0) {
         result.extractedImages = extractedFileImages;
       }
@@ -135,18 +166,28 @@ const App: React.FC = () => {
     } catch (error: any) {
       clearInterval(progressInterval);
       console.error(error);
+      // Refund the credit on error? 
+      // For now, let's simplify and say errors consume credit to prevent API abuse, 
+      // OR you can refund here: updateSubscription({...subscription, remainingCredits: subscription.remainingCredits + 1});
       setStatus({ step: 'error', message: `حدث خطأ أثناء التحليل: ${error.message}`, progress: 0 });
     }
-  }, [apiKey, sourceText, sourceImage, summaryType, maxSections, extractedFileImages]);
+  }, [subscription, sourceText, sourceImage, summaryType, maxSections, extractedFileImages]);
 
   const handleDeepDive = useCallback(async (term: string) => {
+    // Deep dive is "Free" as long as they have an active session or key, 
+    // or we can charge for it too. For now, let's keep it free if they have a key.
+    if (!subscription.activeApiKey) {
+        alert("يرجى تفعيل الاشتراك أولاً.");
+        return;
+    }
+
     setDeepDiveTerm(term);
     setIsDeepDiveOpen(true);
     setDeepDiveResult(null);
     setIsDeepDiveLoading(true);
 
     try {
-      const result = await explainConcept(apiKey, term, sourceText, deepDiveComplexity);
+      const result = await explainConcept(subscription.activeApiKey, term, sourceText, deepDiveComplexity);
       setDeepDiveResult(result);
     } catch (error) {
       console.error(error);
@@ -157,7 +198,7 @@ const App: React.FC = () => {
     } finally {
       setIsDeepDiveLoading(false);
     }
-  }, [apiKey, sourceText, deepDiveComplexity]);
+  }, [subscription.activeApiKey, sourceText, deepDiveComplexity]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -165,20 +206,28 @@ const App: React.FC = () => {
 
       <main className="container mx-auto px-4 py-8 max-w-5xl flex-grow">
         
-        {/* API Key Section */}
+        {/* Subscription / Access Control Section */}
         <section className="mb-8 animate-fade-in-up">
-          <ApiKeyInput apiKey={apiKey} setApiKey={handleSetApiKey} />
+          <ApiKeyInput subscription={subscription} updateSubscription={updateSubscription} />
         </section>
 
         {/* Upload & Config Grid */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
+        <div className={`grid md:grid-cols-2 gap-6 mb-8 transition-opacity duration-300 ${subscription.remainingCredits <= 0 ? 'opacity-50 pointer-events-none filter blur-[1px]' : ''}`}>
           <FileUpload 
             onFileLoaded={handleFileLoaded} 
             fileName={fileName}
             disabled={status.step === 'analyzing' || status.step === 'extracting'}
+            onClear={handleClearFile}
           />
           
-          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col justify-between h-full">
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col justify-between h-full relative">
+             {/* Lock Overlay if no credits */}
+             {subscription.remainingCredits <= 0 && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-50/50">
+                    <Lock className="text-gray-400 w-16 h-16" />
+                </div>
+             )}
+
             <div>
               <h2 className="text-xl font-bold mb-4 text-blue-800 flex items-center gap-2">
                 <BookOpen className="w-5 h-5" />
@@ -215,12 +264,12 @@ const App: React.FC = () => {
 
             <button 
               onClick={handleStartProcessing}
-              disabled={(!sourceText && !sourceImage) || !apiKey || status.step === 'analyzing' || status.step === 'extracting'}
+              disabled={(!sourceText && !sourceImage) || subscription.remainingCredits <= 0 || status.step === 'analyzing' || status.step === 'extracting'}
               className={`w-full font-bold py-4 rounded-lg shadow transition transform active:scale-95 flex justify-center items-center gap-2
-                ${((!sourceText && !sourceImage) || !apiKey) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}
+                ${((!sourceText && !sourceImage) || subscription.remainingCredits <= 0) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}
               `}
             >
-               <span>✨ ابدأ التحليل وتوليد الرسومات</span>
+               <span>✨ ابدأ التحليل (يخصم 1 رصيد)</span>
             </button>
           </div>
         </div>
@@ -234,7 +283,7 @@ const App: React.FC = () => {
         {analysisResult && (
           <ResultsDisplay 
             result={analysisResult} 
-            apiKey={apiKey}
+            apiKey={subscription.activeApiKey}
             onOpenDeepDive={(term) => term ? handleDeepDive(term) : setIsDeepDiveOpen(true)}
           />
         )}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, GraduationCap, School, Lightbulb, Link2 } from 'lucide-react';
+import { BookOpen, GraduationCap, School, Lightbulb, Link2, PlayCircle } from 'lucide-react';
 
 export const SeoContent: React.FC = () => {
   return (
@@ -68,6 +68,26 @@ export const SeoContent: React.FC = () => {
 
         {/* Sidebar / Tags */}
         <aside className="space-y-6">
+          
+          {/* Promo Video Widget - Optimized for Shorts */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+             <div className="bg-gradient-to-r from-red-600 to-red-700 p-3 text-white flex items-center gap-2">
+                <PlayCircle size={20} />
+                <h3 className="font-bold text-sm">شرح سريع (فيديو)</h3>
+             </div>
+             {/* Aspect Ratio 9:16 Container */}
+             <div className="relative w-full aspect-[9/16] bg-black">
+                <iframe 
+                  className="absolute top-0 left-0 w-full h-full"
+                  src="https://www.youtube.com/embed/aBPrk3asifg?rel=0&playsinline=1" 
+                  title="Smart Study AI Promo"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                  allowFullScreen
+                ></iframe>
+             </div>
+          </div>
+
           <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
             <h3 className="font-bold text-gray-900 mb-4 border-b pb-2">كلمات بحث شائعة</h3>
             <div className="flex flex-wrap gap-2">
