@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Key, Lock, Unlock, Zap, MessageCircle, Star } from 'lucide-react';
+import { Key, Lock, Unlock, Zap, MessageCircle, Star, CheckCircle, XCircle } from 'lucide-react';
 import { REDEMPTION_CODES, TRIAL_KEY, getRandomKey, SubscriptionState } from '../config/subscriptionConfig';
 
 interface Props {
@@ -11,6 +11,7 @@ interface Props {
 export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription }) => {
   const [inputCode, setInputCode] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   
   const whatsappNumber = "201022679250"; 
   const whatsappMessage = "مرحباً، أريد شراء كود شحن للملخص الدراسي الذكي.";
@@ -31,29 +32,55 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
   // Handle Code Redemption
   const handleRedeemCode = () => {
     const cleanCode = inputCode.trim().toUpperCase();
+
+    // 1. Basic Validation
+    if (!cleanCode) {
+        setError("يرجى إدخال الكود أولاً.");
+        return;
+    }
+
+    // 2. Check if code has been used locally on this device
+    const usedCodes = JSON.parse(localStorage.getItem('smart_study_used_codes') || '[]');
+    if (usedCodes.includes(cleanCode)) {
+       setError('⚠️ هذا الكود تم استخدامه مسبقاً على هذا الجهاز.');
+       setSuccess('');
+       return;
+    }
+
     const plan = REDEMPTION_CODES[cleanCode];
 
     if (plan) {
-      // Valid Code
+      // Valid Code Logic
       const newState: SubscriptionState = {
         hasUsedTrial: true,
         remainingCredits: subscription.remainingCredits + plan.credits,
         currentTier: plan.tier,
         activeApiKey: getRandomKey(plan.keys) // Assign a random key from the pool
       };
+      
       updateSubscription(newState);
+      
+      // Save code to local history to prevent reuse
+      usedCodes.push(cleanCode);
+      localStorage.setItem('smart_study_used_codes', JSON.stringify(usedCodes));
+
+      // UI Updates
       setInputCode('');
       setError('');
-      alert(`تم شحن الرصيد بنجاح! تم إضافة ${plan.credits} مشروع.`);
+      setSuccess(`تم شحن الرصيد بنجاح! 🎉\nتم إضافة ${plan.credits} مشروع.`);
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccess(''), 5000);
     } else {
-      setError('الكود غير صالح أو خاطئ. تأكد من كتابته بشكل صحيح (مثل: EG10-XXXX)');
+      setError('❌ الكود غير صالح أو خاطئ. تأكد من كتابته بشكل صحيح (مثل: EG10-XXXX)');
+      setSuccess('');
     }
   };
 
   // 1. Case: Active Subscription with Credits
   if (subscription.remainingCredits > 0) {
     return (
-      <div className="bg-white rounded-xl shadow-md p-6 border border-green-200">
+      <div className="bg-white rounded-xl shadow-md p-6 border border-green-200 animate-in fade-in slide-in-from-top-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-green-100 p-3 rounded-full">
@@ -77,6 +104,13 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
             </span>
           )}
         </div>
+        {/* If user just redeemed, show success message here too briefly */}
+        {success && (
+            <div className="mt-4 bg-green-50 border border-green-200 text-green-800 p-3 rounded-lg flex items-center gap-2 text-sm font-medium">
+                <CheckCircle size={18} />
+                <span className="whitespace-pre-line">{success}</span>
+            </div>
+        )}
       </div>
     );
   }
@@ -124,9 +158,13 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
             <input
               type="text"
               value={inputCode}
-              onChange={(e) => setInputCode(e.target.value)}
+              onChange={(e) => {
+                  setInputCode(e.target.value);
+                  setError(''); // Clear error on typing
+              }}
               placeholder="EG10-XXXX"
               className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono tracking-wider"
+              onKeyDown={(e) => e.key === 'Enter' && handleRedeemCode()}
             />
             <button
               onClick={handleRedeemCode}
@@ -136,7 +174,20 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
               تفعيل
             </button>
           </div>
-          {error && <p className="text-red-500 text-sm mt-2 font-medium">{error}</p>}
+          
+          {/* Feedback Messages */}
+          {error && (
+             <div className="mt-3 text-red-600 text-sm font-medium flex items-center gap-1 bg-red-50 p-2 rounded animate-in fade-in">
+                 <XCircle size={16} />
+                 {error}
+             </div>
+          )}
+          {success && (
+             <div className="mt-3 text-green-700 text-sm font-medium flex items-center gap-1 bg-green-50 p-2 rounded animate-in fade-in border border-green-200">
+                 <CheckCircle size={16} />
+                 <span className="whitespace-pre-line">{success}</span>
+             </div>
+          )}
         </div>
 
         {/* Pricing & Contact Section */}

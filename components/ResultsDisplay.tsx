@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { StudyAnalysisResult } from '../types';
-import { FileText, List, HelpCircle, Volume2, Search, Copy, Check, Download, Loader2, Square, Info, Image as ImageIcon, ZoomIn, AlertTriangle, Printer, Camera, FileQuestion } from 'lucide-react';
+import { FileText, List, HelpCircle, Volume2, Search, Copy, Check, Download, Loader2, Square, Info, Image as ImageIcon, ZoomIn, AlertTriangle, Printer, Camera, FileQuestion, FileDown, Gauge } from 'lucide-react';
 import { generateSpeech } from '../services/geminiService';
 import { playAudioFromBase64, stopAudio } from '../services/audioService';
 import { marked } from 'marked';
@@ -55,13 +56,6 @@ const MermaidChart = ({ chart, onInteract }: { chart: string, onInteract?: (term
     if (!onInteract) return;
 
     // 2. Add Interactions
-    // Enhanced selector to cover more diagram types:
-    // .node (Flowchart)
-    // .actor (Sequence)
-    // .mindmap-node (Mindmap)
-    // .classTitle (Class Diagram)
-    // .state (State Diagram)
-    // .entityBox (ER Diagram)
     const nodes = containerRef.current.querySelectorAll('.node, .actor, .mindmap-node, .classTitle, .state, .entityBox');
     
     nodes.forEach((node) => {
@@ -80,8 +74,7 @@ const MermaidChart = ({ chart, onInteract }: { chart: string, onInteract?: (term
            el.appendChild(title);
         }
 
-        // Add visual hover effect using direct style manipulation for reliability
-        // (Note: Mermaid CSS might override specific properties, so we use opacity/filter)
+        // Add visual hover effect
         el.onmouseenter = () => { 
           el.style.opacity = '0.7'; 
           el.style.filter = 'brightness(1.1)';
@@ -111,8 +104,6 @@ const MermaidChart = ({ chart, onInteract }: { chart: string, onInteract?: (term
         <p className="text-red-600 text-xs mt-1 max-w-xs">
           البيانات الواردة من النموذج تحتوي على تنسيق معقد أو غير مدعوم حالياً.
         </p>
-        {/* Optional: Show raw code for debugging purposes if needed */}
-        {/* <pre className="text-[10px] text-left mt-2 p-2 bg-gray-100 rounded overflow-auto max-w-full text-gray-500">{chart}</pre> */}
       </div>
     );
   }
@@ -124,7 +115,7 @@ const MermaidChart = ({ chart, onInteract }: { chart: string, onInteract?: (term
             className="mermaid-wrapper w-full p-4 md:p-6 bg-white rounded-lg border border-gray-200 shadow-sm overflow-x-auto flex justify-center" 
             dangerouslySetInnerHTML={{ __html: svg }} 
         />
-        <p className="text-xs text-gray-400 mt-2 flex items-center gap-1.5 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100">
+        <p className="text-xs text-gray-400 mt-2 flex items-center gap-1.5 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 no-print">
             <Info size={12} className="text-blue-500" />
             <span className="font-medium text-blue-600">تفاعلي:</span>
             اضغط على أي جزء في الرسم الهندسي لشرحه بالتفصيل
@@ -154,7 +145,9 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
   const [audioState, setAudioState] = useState<AudioState>('idle');
   const [copied, setCopied] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState('Zephyr');
+  const [readingSpeed, setReadingSpeed] = useState(1.0);
   const [isExportingImage, setIsExportingImage] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   
   // State for highlighting
   const [highlightedText, setHighlightedText] = useState<string | null>(null);
@@ -179,7 +172,6 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
   };
 
   const handleReadAloud = async () => {
-    // If already playing/generating, stop it
     if (audioState !== 'idle') {
       handleStopReading();
       return;
@@ -191,12 +183,10 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
       return;
     }
 
-    // Reset stop flag
     stopPlaybackRef.current = false;
     setAudioState('generating');
 
     try {
-      // Split text into sentences for tracking
       const sentences = textToRead.match(/[^.!?\n]+([.!?\n]+|$)/g) || [textToRead];
 
       for (const sentence of sentences) {
@@ -210,11 +200,9 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
 
         try {
           const audioData = await generateSpeech(apiKey, cleanSentence, selectedVoice);
-          
           if (stopPlaybackRef.current) break;
-          
           setAudioState('playing');
-          await playAudioFromBase64(audioData);
+          await playAudioFromBase64(audioData, 24000, readingSpeed);
         } catch (err) {
           console.error("Error playing chunk:", err);
         }
@@ -229,10 +217,8 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
     }
   };
 
-  const getRenderContent = () => {
-    const content = getActiveContent();
+  const getRenderContent = (content: string) => {
     if (highlightedText && content) {
-      const escapedSentence = highlightedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       return content.replace(highlightedText, `~~${highlightedText}~~`);
     }
     return content;
@@ -299,8 +285,17 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
     document.body.removeChild(link);
   };
 
-  const handlePrintPdf = () => {
-    window.print();
+  const handleExportPdf = () => {
+    setIsPrinting(true);
+    const originalTitle = document.title;
+    document.title = getBaseFileName();
+
+    // Small delay to allow React to render the full view and Mermaid charts to load
+    setTimeout(() => {
+        window.print();
+        document.title = originalTitle;
+        setIsPrinting(false);
+    }, 2000); // 2 seconds delay to ensure diagrams render
   };
 
   const handleDownloadImage = async () => {
@@ -309,7 +304,7 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
     
     try {
         const canvas = await html2canvas(contentRef.current, {
-            scale: 2, // Higher resolution
+            scale: 2,
             useCORS: true,
             backgroundColor: '#ffffff'
         });
@@ -332,19 +327,13 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
       alert("لا توجد أسئلة لتصديرها.");
       return;
     }
-
-    // Convert Markdown to clean text
-    // Replace ### (Headers) with "❓ Question: "
-    // Replace > (Blockquotes) with "✅ Answer: "
-    // Remove bold/italic markers
     let content = result.qa
       .replace(/###\s*(.+)/g, '\n----------------------------------------\n❓ $1')
       .replace(/>\s*(.+)/g, '✅ $1')
-      .replace(/(\*\*|__)(.*?)\1/g, '$2') // Remove bold
+      .replace(/(\*\*|__)(.*?)\1/g, '$2')
       .trim();
 
     const fileContent = `بنك الأسئلة والمراجعة\nللملف: ${result.fileName || 'Document'}\nتاريخ الاستخراج: ${new Date().toLocaleDateString('ar-EG')}\n\n${content}`;
-
     const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -356,6 +345,102 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
     URL.revokeObjectURL(url);
   };
 
+  // Reusable Markdown Configuration
+  const MarkdownRenderer = ({ content }: { content: string }) => (
+    <ReactMarkdown 
+        remarkPlugins={[remarkGfm]}
+        components={{
+            code({node, inline, className, children, ...props}: any) {
+                const match = /language-(\w+)/.exec(className || '');
+                if (!inline && match && match[1] === 'mermaid') {
+                    return <MermaidChart chart={String(children).replace(/\n$/, '')} onInteract={onOpenDeepDive} />;
+                }
+                return <code className={className} {...props}>{children}</code>;
+            },
+            del({node, className, children, ...props}: any) {
+                return (
+                    <mark className="bg-yellow-200 text-gray-900 no-underline decoration-0 rounded px-1 animate-pulse inline-block transition-colors duration-300">
+                        {children}
+                    </mark>
+                );
+            },
+            img({node, src, alt, className, ...props}: any) {
+                let imageSrc = src;
+                if (result.extractedImages && /^\d+$/.test(src)) {
+                    const index = parseInt(src, 10);
+                    if (index >= 0 && index < result.extractedImages.length) {
+                        imageSrc = result.extractedImages[index];
+                    }
+                }
+                return (
+                    <figure className="my-6 text-center page-break-inside-avoid">
+                        <img 
+                            src={imageSrc} 
+                            alt={alt || 'صورة توضيحية'} 
+                            className="max-w-full h-auto rounded-lg shadow-md mx-auto border border-gray-100" 
+                            loading="lazy"
+                        />
+                        {alt && <figcaption className="text-sm text-gray-500 mt-2 italic">{alt}</figcaption>}
+                    </figure>
+                );
+            }
+        }}
+    >
+        {content}
+    </ReactMarkdown>
+  );
+
+  // --- PRINT MODE RENDER ---
+  if (isPrinting) {
+    return (
+        <div className="fixed inset-0 bg-white z-[100] overflow-auto p-8 print:p-0">
+            {/* Loading Overlay (Hidden during actual print) */}
+            <div className="no-print fixed inset-0 bg-black/50 flex items-center justify-center z-[110]">
+                <div className="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center">
+                    <Loader2 size={40} className="animate-spin text-blue-600 mb-4" />
+                    <p className="font-bold text-lg">جاري تحضير ملف PDF...</p>
+                    <p className="text-sm text-gray-500">يرجى الانتظار حتى تكتمل الرسوم البيانية</p>
+                </div>
+            </div>
+            
+            {/* Full Content Container */}
+            <div className="max-w-4xl mx-auto">
+                 {/* Header */}
+                 <div className="text-center mb-8 border-b-2 border-blue-100 pb-6">
+                     <h1 className="text-4xl font-bold text-blue-900 mb-2">المُلخص الدراسي الذكي</h1>
+                     <p className="text-xl text-gray-600 font-medium">{result.fileName}</p>
+                     <p className="text-gray-400 mt-2">{new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                 </div>
+
+                 {/* Overview */}
+                 <section className="mb-12">
+                    <h2 className="text-2xl font-bold text-blue-800 border-r-4 border-blue-600 pr-3 mb-6 bg-blue-50 py-2 rounded-l">نظرة عامة</h2>
+                    <div className="markdown-body font-[Arial,sans-serif]">
+                        <MarkdownRenderer content={result.overview} />
+                    </div>
+                 </section>
+
+                 {/* Summary */}
+                 <section className="mb-12">
+                    <h2 className="text-2xl font-bold text-blue-800 border-r-4 border-blue-600 pr-3 mb-6 bg-blue-50 py-2 rounded-l">الملخص الشامل</h2>
+                    <div className="markdown-body font-[Arial,sans-serif]">
+                        <MarkdownRenderer content={result.summary} />
+                    </div>
+                 </section>
+
+                 {/* QA */}
+                 <section className="mb-12" style={{ pageBreakBefore: 'always' }}>
+                    <h2 className="text-2xl font-bold text-blue-800 border-r-4 border-blue-600 pr-3 mb-6 bg-blue-50 py-2 rounded-l">بنك الأسئلة</h2>
+                    <div className="markdown-body font-[Arial,sans-serif]">
+                        <MarkdownRenderer content={result.qa} />
+                    </div>
+                 </section>
+            </div>
+        </div>
+    );
+  }
+
+  // --- NORMAL INTERACTIVE MODE RENDER ---
   const TabButton = ({ id, label, icon: Icon }: { id: typeof activeTab, label: string, icon: any }) => (
     <button
       onClick={() => { 
@@ -409,11 +494,11 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
                <Download size={16} />
                Word
             </button>
-            <button onClick={handlePrintPdf} className="btn-secondary text-xs md:text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 flex items-center gap-2 transition text-red-700" title="تصدير PDF (طباعة)">
-               <Printer size={16} />
-               PDF
+            <button onClick={handleExportPdf} className="btn-secondary text-xs md:text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 flex items-center gap-2 transition text-red-700" title="تصدير ملف PDF شامل (Overview + Summary + QA)">
+               <FileDown size={16} />
+               تصدير PDF
             </button>
-            <button onClick={handleDownloadImage} disabled={isExportingImage} className="btn-secondary text-xs md:text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 flex items-center gap-2 transition text-purple-700" title="حفظ كصورة">
+            <button onClick={handleDownloadImage} disabled={isExportingImage} className="btn-secondary text-xs md:text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 flex items-center gap-2 transition text-purple-700" title="حفظ القسم الحالي كصورة">
                {isExportingImage ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
                صورة
             </button>
@@ -431,6 +516,20 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
              
              {activeTab !== 'figures' && (
                <>
+                 <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded border border-gray-300" title="سرعة القراءة">
+                   <Gauge size={14} className="text-gray-500" />
+                   <input 
+                     type="range" 
+                     min="0.5" 
+                     max="2.0" 
+                     step="0.1" 
+                     value={readingSpeed} 
+                     onChange={(e) => setReadingSpeed(parseFloat(e.target.value))}
+                     className="w-16 md:w-20 cursor-pointer h-1.5 bg-gray-200 rounded-lg appearance-none"
+                   />
+                   <span className="text-xs text-gray-500 w-6">{readingSpeed}x</span>
+                 </div>
+
                  <select 
                    value={selectedVoice} 
                    onChange={(e) => setSelectedVoice(e.target.value)}
@@ -489,49 +588,7 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
           ) : (
             <div className={`markdown-body tab-${activeTab} font-[Arial,sans-serif]`}>
               {getActiveContent() ? (
-                <ReactMarkdown 
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    code({node, inline, className, children, ...props}: any) {
-                      const match = /language-(\w+)/.exec(className || '');
-                      if (!inline && match && match[1] === 'mermaid') {
-                        return <MermaidChart chart={String(children).replace(/\n$/, '')} onInteract={onOpenDeepDive} />;
-                      }
-                      return <code className={className} {...props}>{children}</code>;
-                    },
-                    del({node, className, children, ...props}: any) {
-                      return (
-                        <mark className="bg-yellow-200 text-gray-900 no-underline decoration-0 rounded px-1 animate-pulse inline-block transition-colors duration-300">
-                          {children}
-                        </mark>
-                      );
-                    },
-                    img({node, src, alt, className, ...props}: any) {
-                        let imageSrc = src;
-                        // Check if src is an index reference to extractedImages (e.g. "0", "1")
-                        if (result.extractedImages && /^\d+$/.test(src)) {
-                            const index = parseInt(src, 10);
-                            if (index >= 0 && index < result.extractedImages.length) {
-                                imageSrc = result.extractedImages[index];
-                            }
-                        }
-                        
-                        return (
-                            <figure className="my-6 text-center">
-                                <img 
-                                    src={imageSrc} 
-                                    alt={alt || 'صورة توضيحية'} 
-                                    className="max-w-full h-auto rounded-lg shadow-md mx-auto border border-gray-100" 
-                                    loading="lazy"
-                                />
-                                {alt && <figcaption className="text-sm text-gray-500 mt-2 italic">{alt}</figcaption>}
-                            </figure>
-                        );
-                    }
-                  }}
-                >
-                  {getRenderContent()}
-                </ReactMarkdown>
+                <MarkdownRenderer content={getRenderContent(getActiveContent())} />
               ) : (
                 <div className="text-center text-gray-400 py-20">
                   <p>لا يوجد محتوى لعرضه في هذا القسم.</p>

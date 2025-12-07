@@ -8,6 +8,7 @@ import { ResultsDisplay } from './components/ResultsDisplay';
 import { DeepDivePanel } from './components/DeepDivePanel';
 import { SeoContent } from './components/SeoContent';
 import { HistoryList } from './components/HistoryList';
+import { OnboardingTour } from './components/OnboardingTour';
 import { extractTextFromPDF } from './services/pdfService';
 import { extractTextFromPPTX } from './services/pptxService';
 import { analyzeText, explainConcept } from './services/geminiService';
@@ -42,12 +43,26 @@ const App: React.FC = () => {
   const [fileName, setFileName] = useState<string>('');
   const [status, setStatus] = useState<ProcessingStatus>({ step: 'idle', message: '', progress: 0 });
   const [analysisResult, setAnalysisResult] = useState<StudyAnalysisResult | null>(null);
+  const [showTour, setShowTour] = useState(false);
   
   // History State
   const [history, setHistory] = useState<StudyAnalysisResult[]>(() => {
     const saved = localStorage.getItem('smart_study_history');
     return saved ? JSON.parse(saved) : [];
   });
+
+  // Check for first time visit to show tour
+  useEffect(() => {
+    const hasSeenTour = localStorage.getItem('smart_study_tour_seen');
+    if (!hasSeenTour) {
+      setShowTour(true);
+    }
+  }, []);
+
+  const closeTour = () => {
+    setShowTour(false);
+    localStorage.setItem('smart_study_tour_seen', 'true');
+  };
 
   const saveToHistory = (result: StudyAnalysisResult) => {
     const newHistory = [result, ...history].slice(0, 10); // Keep last 10
@@ -232,6 +247,9 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       <Header />
+
+      {/* Onboarding Tour Modal */}
+      {showTour && <OnboardingTour onClose={closeTour} />}
 
       <main className="container mx-auto px-4 py-8 max-w-5xl flex-grow">
         

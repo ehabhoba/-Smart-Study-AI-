@@ -1,3 +1,4 @@
+
 /**
  * Decodes a base64 string into a raw byte array.
  */
@@ -71,9 +72,9 @@ export const stopAudio = () => {
 };
 
 /**
- * Plays PCM Audio Data from Base64 string.
+ * Plays PCM Audio Data from Base64 string with optional speed control.
  */
-export const playAudioFromBase64 = async (base64Audio: string, sampleRate: number = 24000): Promise<void> => {
+export const playAudioFromBase64 = async (base64Audio: string, sampleRate: number = 24000, playbackRate: number = 1.0): Promise<void> => {
   // Stop any previous audio before starting new one
   stopAudio();
 
@@ -96,6 +97,10 @@ export const playAudioFromBase64 = async (base64Audio: string, sampleRate: numbe
     
     const source = audioContext.createBufferSource();
     source.buffer = audioBuffer;
+    
+    // Set playback rate (speed)
+    source.playbackRate.value = playbackRate;
+
     source.connect(audioContext.destination);
     
     currentSource = source;
@@ -105,9 +110,6 @@ export const playAudioFromBase64 = async (base64Audio: string, sampleRate: numbe
     return new Promise((resolve, reject) => {
         source.onended = () => {
             resolve();
-            // Don't close immediately here if we want to chain, 
-            // but for safety in single play we often do. 
-            // In our sequence logic, we might keep context, but here we clean up.
             currentSource = null; 
         };
         source.onabort = () => {
