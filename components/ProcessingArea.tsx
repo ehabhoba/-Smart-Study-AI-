@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, FileText, Brain, CheckCircle, AlertCircle, Lightbulb } from 'lucide-react';
+import { Loader2, FileText, Brain, CheckCircle, AlertCircle, Lightbulb, Sparkles } from 'lucide-react';
 import { ProcessingStatus } from '../types';
 
 interface Props {
@@ -7,12 +7,12 @@ interface Props {
 }
 
 const TIPS = [
-  "💡 هل تعلم؟ أخذ استراحة قصيرة كل 25 دقيقة (تقنية بومودورو) يضاعف تركيزك.",
-  "💡 هل تعلم؟ شرب الماء بانتظام أثناء الدراسة يحسن الوظائف الإدراكية.",
-  "💡 نصيحة: حاول شرح ما تعلمته لشخص آخر لترسيخ المعلومة في ذهنك.",
-  "💡 هل تعلم؟ النوم الجيد بعد الدراسة يساعد الدماغ على نقل المعلومات للذاكرة طويلة المدى.",
-  "💡 نصيحة: استخدام الألوان والرسوم البيانية يجعل التذكر أسهل بمراحل.",
-  "💡 هل تعلم؟ الدراسة في أوقات الصباح الباكر غالباً ما تكون أكثر إنتاجية."
+  "💡 نصيحة احترافية: اضغط على أي مربع في الرسوم البيانية (Mermaid) لفتح شرح تفصيلي فوري (Deep Dive).",
+  "💡 هل تعلم؟ يمكنك رفع ملفات PowerPoint مباشرة، وسيقوم الذكاء الاصطناعي بتحليل الشرائح والصور بداخلها.",
+  "💡 ميزة خفية: استخدم زر 'قراءة (TTS)' للاستماع للملخص بصوت طبيعي أثناء ممارسة رياضة المشي.",
+  "💡 تلميح: إذا كان الشرح معقداً، افتح نافذة 'Deep Dive' واختر المستوى 'مبسط' (Simple) للشرح.",
+  "💡 هل تعلم؟ قسم 'الأسئلة' يتم توليده بناءً على أنماط الامتحانات الحقيقية لمساعدتك في المراجعة النهائية.",
+  "💡 نصيحة: يمكنك تصدير الملخص إلى ملف Word لتعديله أو PDF لطباعته والمذاكرة منه ورقياً."
 ];
 
 export const ProcessingArea: React.FC<Props> = ({ status }) => {
@@ -30,7 +30,7 @@ export const ProcessingArea: React.FC<Props> = ({ status }) => {
     if (status.step === 'analyzing') {
       const timer = setInterval(() => {
         setCurrentTip((prev) => (prev + 1) % TIPS.length);
-      }, 5000);
+      }, 6000); // Slightly longer duration for reading
       return () => clearInterval(timer);
     }
   }, [status.step]);
@@ -124,12 +124,12 @@ export const ProcessingArea: React.FC<Props> = ({ status }) => {
                     
                     {/* Animated Tips Section */}
                     {status.step === 'analyzing' && (
-                      <div className="mt-8 bg-amber-50 border border-amber-200 rounded-lg p-4 w-full flex flex-col items-center text-center animate-fade-in transition-all duration-500">
-                        <div className="flex items-center gap-2 text-amber-600 font-bold mb-2">
-                          <Lightbulb size={18} />
-                          <span>تلميح دراسي</span>
+                      <div className="mt-8 bg-amber-50 border border-amber-200 rounded-lg p-5 w-full flex flex-col items-center text-center animate-fade-in transition-all duration-500 shadow-sm">
+                        <div className="flex items-center gap-2 text-amber-700 font-bold mb-3 bg-amber-100 px-3 py-1 rounded-full text-sm">
+                          <Sparkles size={16} />
+                          <span>تلميح ذكي</span>
                         </div>
-                        <p className="text-sm text-gray-700 font-medium min-h-[3rem] flex items-center justify-center animate-in fade-in slide-in-from-bottom-1 duration-500 key={currentTip}">
+                        <p className="text-gray-800 font-medium min-h-[3.5rem] flex items-center justify-center animate-in fade-in slide-in-from-bottom-1 duration-500 key={currentTip} leading-relaxed">
                           {TIPS[currentTip]}
                         </p>
                       </div>

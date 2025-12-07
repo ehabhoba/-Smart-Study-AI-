@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { StudyAnalysisResult } from '../types';
-import { FileText, List, HelpCircle, Volume2, Search, Copy, Check, Download, Loader2, Square, Info, Image as ImageIcon, ZoomIn, AlertTriangle, Printer, Camera } from 'lucide-react';
+import { FileText, List, HelpCircle, Volume2, Search, Copy, Check, Download, Loader2, Square, Info, Image as ImageIcon, ZoomIn, AlertTriangle, Printer, Camera, FileQuestion } from 'lucide-react';
 import { generateSpeech } from '../services/geminiService';
 import { playAudioFromBase64, stopAudio } from '../services/audioService';
 import { marked } from 'marked';
@@ -327,6 +327,35 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
     }
   };
 
+  const handleDownloadQA = () => {
+    if (!result.qa) {
+      alert("لا توجد أسئلة لتصديرها.");
+      return;
+    }
+
+    // Convert Markdown to clean text
+    // Replace ### (Headers) with "❓ Question: "
+    // Replace > (Blockquotes) with "✅ Answer: "
+    // Remove bold/italic markers
+    let content = result.qa
+      .replace(/###\s*(.+)/g, '\n----------------------------------------\n❓ $1')
+      .replace(/>\s*(.+)/g, '✅ $1')
+      .replace(/(\*\*|__)(.*?)\1/g, '$2') // Remove bold
+      .trim();
+
+    const fileContent = `بنك الأسئلة والمراجعة\nللملف: ${result.fileName || 'Document'}\nتاريخ الاستخراج: ${new Date().toLocaleDateString('ar-EG')}\n\n${content}`;
+
+    const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${getBaseFileName()}_Questions.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const TabButton = ({ id, label, icon: Icon }: { id: typeof activeTab, label: string, icon: any }) => (
     <button
       onClick={() => { 
@@ -387,6 +416,10 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
             <button onClick={handleDownloadImage} disabled={isExportingImage} className="btn-secondary text-xs md:text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 flex items-center gap-2 transition text-purple-700" title="حفظ كصورة">
                {isExportingImage ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
                صورة
+            </button>
+            <button onClick={handleDownloadQA} className="btn-secondary text-xs md:text-sm py-1.5 px-3 bg-white border border-gray-300 rounded hover:bg-gray-100 flex items-center gap-2 transition text-green-700" title="تصدير الأسئلة (TXT)">
+               <FileQuestion size={16} />
+               أسئلة
             </button>
          </div>
          
