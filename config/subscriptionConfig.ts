@@ -1,36 +1,50 @@
 
-export const TRIAL_KEY = "AIzaSyA9ux-xuov0oO50AKtN8LKEloM3l2zKsws"; // المفتاح المجاني المشترك
-export const DAILY_FREE_LIMIT = 5; // عدد المحاولات المجانية اليومية
-
 export interface SubscriptionState {
-  hasUsedTrial: boolean; // Keep for legacy, but mainly rely on tier 0
+  hasUsedTrial: boolean;
   remainingCredits: number;
   currentTier: number; // 0 = Free, >0 = Paid
   activeApiKey: string;
-  lastDailyReset?: string; // ISO Date String for the last time free credits were reset
+  lastDailyReset?: string;
 }
 
 export const getRandomKey = (keys: string[]) => {
+  if (!keys || keys.length === 0) return "";
   return keys[Math.floor(Math.random() * keys.length)];
 };
 
-// مفاتيح الفئات المختلفة
-const KEYS_TIER_10 = [
-  "AIzaSyAae4o9ihHx67bS9pOPYuL11dyVH-Oh3HM",
+// --- مفاتيح الباقة المجانية (Free Tier Pool) ---
+// يتم اختيار مفتاح عشوائي عند كل إعادة تحميل أو تجديد يومي لتوزيع الحمل
+const FREE_KEYS_POOL = [
   "AIzaSyAP_iM9CblP21ExCUV5zUqCEkNU-3L-Vmc",
-  "AIzaSyCtImuR1u22a-1EP9SKXS8j9AcPZdCSz7g"
-];
-
-const KEYS_TIER_20 = [
+  "AIzaSyCtImuR1u22a-1EP9SKXS8j9AcPZdCSz7g",
   "AIzaSyAfFuTMnZu7c0z3dpw8Zqb1W7U1QgrTlPU",
   "AIzaSyBd0Y849ZwNDLpqYXk7WxArx-zz5I0LRaM",
-  "AIzaSyD_WzHJ3dVOlQD3IMnmRWi9-V0jWg5GUzA"
-];
-
-const KEYS_TIER_100 = [
+  "AIzaSyD_WzHJ3dVOlQD3IMnmRWi9-V0jWg5GUzA",
   "AIzaSyA9ux-xuov0oO50AKtN8LKEloM3l2zKsws",
   "AIzaSyBm61u_xuIo3-Mb1hjySPZUazrwTtXJK0E",
   "AIzaSyB8lsM9oFPYJgS2ujxuVCthR58v7hezaeo"
+];
+
+// اختيار مفتاح عشوائي للتجربة المجانية
+export const TRIAL_KEY = getRandomKey(FREE_KEYS_POOL);
+
+export const DAILY_FREE_LIMIT = 5; // عدد المحاولات المجانية اليومية
+
+// ⚠️ مفاتيح الباقات المدفوعة (يجب أن تكون مختلفة لضمان الجودة للمشتركين)
+// Get keys from: https://aistudio.google.com/
+const KEYS_TIER_10 = [
+  "PUT_YOUR_VALID_PAID_KEY_HERE_1",
+  "PUT_YOUR_VALID_PAID_KEY_HERE_2"
+];
+
+const KEYS_TIER_20 = [
+  "PUT_YOUR_VALID_PAID_KEY_HERE_3",
+  "PUT_YOUR_VALID_PAID_KEY_HERE_4"
+];
+
+const KEYS_TIER_100 = [
+  "PUT_YOUR_VALID_PAID_KEY_HERE_5",
+  "PUT_YOUR_VALID_PAID_KEY_HERE_6"
 ];
 
 // تعريف الأكواد المرتبطة بكل خطة
@@ -46,16 +60,6 @@ export const REDEMPTION_CODES: Record<string, { tier: number, credits: number, k
   "EG10-Q5R2": { tier: 10, credits: 10, keys: KEYS_TIER_10 },
   "EG10-S4T7": { tier: 10, credits: 10, keys: KEYS_TIER_10 },
   "EG10-U0V8": { tier: 10, credits: 10, keys: KEYS_TIER_10 },
-  "EG10-W1X5": { tier: 10, credits: 10, keys: KEYS_TIER_10 },
-  "EG10-Y7Z3": { tier: 10, credits: 10, keys: KEYS_TIER_10 },
-  "EG10-2A6B": { tier: 10, credits: 10, keys: KEYS_TIER_10 },
-  "EG10-4C8D": { tier: 10, credits: 10, keys: KEYS_TIER_10 },
-  "EG10-5E9F": { tier: 10, credits: 10, keys: KEYS_TIER_10 },
-  "EG10-3G7H": { tier: 10, credits: 10, keys: KEYS_TIER_10 },
-  "EG10-9J0K": { tier: 10, credits: 10, keys: KEYS_TIER_10 },
-  "EG10-8L2M": { tier: 10, credits: 10, keys: KEYS_TIER_10 },
-  "EG10-7N1P": { tier: 10, credits: 10, keys: KEYS_TIER_10 },
-  "EG10-6Q0R": { tier: 10, credits: 10, keys: KEYS_TIER_10 },
 
   // --- فئة 20 جنيه (20 مشروع) ---
   "EG50-H0K4": { tier: 20, credits: 20, keys: KEYS_TIER_20 },
@@ -68,16 +72,6 @@ export const REDEMPTION_CODES: Record<string, { tier: number, credits: number, k
   "EG50-T2U3": { tier: 20, credits: 20, keys: KEYS_TIER_20 },
   "EG50-R4W5": { tier: 20, credits: 20, keys: KEYS_TIER_20 },
   "EG50-P8Y6": { tier: 20, credits: 20, keys: KEYS_TIER_20 },
-  "EG50-N0Z9": { tier: 20, credits: 20, keys: KEYS_TIER_20 },
-  "EG50-M1B3": { tier: 20, credits: 20, keys: KEYS_TIER_20 },
-  "EG50-L5C7": { tier: 20, credits: 20, keys: KEYS_TIER_20 },
-  "EG50-J9D2": { tier: 20, credits: 20, keys: KEYS_TIER_20 },
-  "EG50-G6E4": { tier: 20, credits: 20, keys: KEYS_TIER_20 },
-  "EG50-E8F0": { tier: 20, credits: 20, keys: KEYS_TIER_20 },
-  "EG50-C2H1": { tier: 20, credits: 20, keys: KEYS_TIER_20 },
-  "EG50-A4J5": { tier: 20, credits: 20, keys: KEYS_TIER_20 },
-  "EG50-9K3L": { tier: 20, credits: 20, keys: KEYS_TIER_20 },
-  "EG50-7M6N": { tier: 20, credits: 20, keys: KEYS_TIER_20 },
 
   // --- فئة 100 جنيه (200 مشروع) ---
   "EG100-1Q4W": { tier: 100, credits: 200, keys: KEYS_TIER_100 },
@@ -90,14 +84,4 @@ export const REDEMPTION_CODES: Record<string, { tier: number, credits: number, k
   "EG100-8G1H": { tier: 100, credits: 200, keys: KEYS_TIER_100 },
   "EG100-9J2K": { tier: 100, credits: 200, keys: KEYS_TIER_100 },
   "EG100-0L3Z": { tier: 100, credits: 200, keys: KEYS_TIER_100 },
-  "EG100-1X4C": { tier: 100, credits: 200, keys: KEYS_TIER_100 },
-  "EG100-2V5B": { tier: 100, credits: 200, keys: KEYS_TIER_100 },
-  "EG100-3N6M": { tier: 100, credits: 200, keys: KEYS_TIER_100 },
-  "EG100-4Q7W": { tier: 100, credits: 200, keys: KEYS_TIER_100 },
-  "EG100-5E8R": { tier: 100, credits: 200, keys: KEYS_TIER_100 },
-  "EG100-6T9Y": { tier: 100, credits: 200, keys: KEYS_TIER_100 },
-  "EG100-7U0I": { tier: 100, credits: 200, keys: KEYS_TIER_100 },
-  "EG100-8O1P": { tier: 100, credits: 200, keys: KEYS_TIER_100 },
-  "EG100-9A2S": { tier: 100, credits: 200, keys: KEYS_TIER_100 },
-  "EG100-0D3F": { tier: 100, credits: 200, keys: KEYS_TIER_100 },
 };

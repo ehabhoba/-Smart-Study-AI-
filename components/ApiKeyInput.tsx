@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Key, Lock, Unlock, Zap, MessageCircle, Star, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Key, Lock, Unlock, Zap, MessageCircle, Star, CheckCircle, XCircle, Clock, Terminal } from 'lucide-react';
 import { REDEMPTION_CODES, TRIAL_KEY, getRandomKey, SubscriptionState, DAILY_FREE_LIMIT } from '../config/subscriptionConfig';
 
 interface Props {
@@ -42,50 +42,63 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
 
   // Handle Code Redemption
   const handleRedeemCode = () => {
-    const cleanCode = inputCode.trim().toUpperCase();
+    const cleanCode = inputCode.trim(); // Case sensitive check later
 
-    // 1. Basic Validation
     if (!cleanCode) {
         setError("يرجى إدخال الكود أولاً.");
         return;
     }
 
-    // 2. Check if code has been used locally on this device
+    // --- Developer Mode: Direct API Key Input ---
+    // If input starts with 'AIza', treat it as a direct Google API Key
+    if (cleanCode.startsWith('AIza')) {
+        const newState: SubscriptionState = {
+            ...subscription,
+            remainingCredits: 9999, // Unlimited for direct key
+            currentTier: 999, // Developer Tier
+            activeApiKey: cleanCode,
+        };
+        updateSubscription(newState);
+        setInputCode('');
+        setError('');
+        setSuccess('تم تفعيل وضع المطور (Developer Mode) بنجاح! 🚀');
+        setTimeout(() => setSuccess(''), 5000);
+        return;
+    }
+
+    // --- Normal User Mode: Coupon Codes ---
+    const upperCode = cleanCode.toUpperCase();
+    
+    // Check if code has been used locally
     const usedCodes = JSON.parse(localStorage.getItem('smart_study_used_codes') || '[]');
-    if (usedCodes.includes(cleanCode)) {
+    if (usedCodes.includes(upperCode)) {
        setError('⚠️ هذا الكود تم استخدامه مسبقاً على هذا الجهاز.');
        setSuccess('');
        return;
     }
 
-    const plan = REDEMPTION_CODES[cleanCode];
+    const plan = REDEMPTION_CODES[upperCode];
 
     if (plan) {
-      // Valid Code Logic - Upgrade to Paid Tier
-      // Note: Paid credits are added ON TOP of current credits, and tier changes
+      // Valid Code Logic
       const newState: SubscriptionState = {
         ...subscription,
         remainingCredits: subscription.remainingCredits + plan.credits,
         currentTier: plan.tier,
         activeApiKey: getRandomKey(plan.keys),
-        // We keep the trial info but move to paid tier
       };
       
       updateSubscription(newState);
       
-      // Save code to local history to prevent reuse
-      usedCodes.push(cleanCode);
+      usedCodes.push(upperCode);
       localStorage.setItem('smart_study_used_codes', JSON.stringify(usedCodes));
 
-      // UI Updates
       setInputCode('');
       setError('');
       setSuccess(`تم شحن الرصيد بنجاح! 🎉\nتم إضافة ${plan.credits} مشروع.`);
-      
-      // Clear success message after 5 seconds
       setTimeout(() => setSuccess(''), 5000);
     } else {
-      setError('❌ الكود غير صالح أو خاطئ. تأكد من كتابته بشكل صحيح (مثل: EG10-XXXX)');
+      setError('❌ الكود غير صالح. تأكد من كتابته بشكل صحيح (مثل: EG10-XXXX) أو أدخل مفتاح API مباشر.');
       setSuccess('');
     }
   };
@@ -103,7 +116,7 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
             </div>
             <div>
               <h3 className="font-bold text-green-900 text-lg">
-                {isFreeTier ? 'الباقة المجانية اليومية' : 'الاشتراك المميز مفعل'}
+                {subscription.currentTier === 999 ? 'وضع المطور (غير محدود)' : isFreeTier ? 'الباقة المجانية اليومية' : 'الاشتراك المميز مفعل'}
               </h3>
               <p className="text-green-700">
                 المتبقي اليوم: <span className="font-bold text-2xl mx-1">{subscription.remainingCredits}</span> {isFreeTier ? `/ ${DAILY_FREE_LIMIT}` : ''} مشروع
@@ -119,11 +132,10 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
               </span>
             ) : (
               <span className="bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-                باقة {subscription.currentTier} جنيه
+                باقة {subscription.currentTier === 999 ? 'DEV' : subscription.currentTier + ' جنيه'}
               </span>
             )}
             
-            {/* If paid user wants to add more */}
             {!isFreeTier && (
                  <div className="text-xs text-gray-500 underline cursor-pointer mt-1" onClick={() => setSuccess('أدخل كود جديد في الأسفل للشحن')}>
                     شحن المزيد؟
@@ -132,7 +144,6 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
           </div>
         </div>
         
-        {/* If user just redeemed, show success message here too briefly */}
         {success && (
             <div className="mt-4 bg-green-50 border border-green-200 text-green-800 p-3 rounded-lg flex items-center gap-2 text-sm font-medium">
                 <CheckCircle size={18} />
@@ -143,7 +154,7 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
     );
   }
 
-  // 2. Case: No Credits (Expired Free or Empty Paid)
+  // 2. Case: No Credits
   return (
     <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 relative overflow-hidden">
       <div className="absolute top-0 left-0 w-2 h-full bg-red-500"></div>
@@ -163,9 +174,6 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
                  سيتم تجديد الرصيد المجاني خلال: <span className="font-bold dir-ltr">{nextReset}</span>
               </p>
             </div>
-            <div className="text-center text-xs text-gray-500">
-               أو اشترِ كود شحن للمتابعة فوراً 👇
-            </div>
           </div>
         ) : (
           <div className="bg-red-50 border border-red-100 rounded-lg p-3 mb-6 text-sm text-red-800 flex items-center gap-2">
@@ -179,7 +187,7 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
         {/* Code Input Section */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            لديك كود شحن (10/20/100 جنيه)؟ أدخله هنا:
+            أدخل كود الشحن (EG10...) أو مفتاح API مباشر:
           </label>
           <div className="flex gap-2">
             <input
@@ -187,10 +195,10 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
               value={inputCode}
               onChange={(e) => {
                   setInputCode(e.target.value);
-                  setError(''); // Clear error on typing
+                  setError('');
               }}
-              placeholder="EG10-XXXX"
-              className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono tracking-wider"
+              placeholder="EG10-XXXX أو AIzaSy..."
+              className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono tracking-wider"
               onKeyDown={(e) => e.key === 'Enter' && handleRedeemCode()}
             />
             <button
@@ -198,11 +206,14 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
               disabled={!inputCode}
               className="bg-gray-800 text-white px-5 rounded-lg font-bold hover:bg-gray-900 transition disabled:opacity-50"
             >
-              شحن
+              تفعيل
             </button>
           </div>
+          <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+             <Terminal size={12} />
+             تلميح: يمكنك إدخال مفتاح Google API الخاص بك مباشرة (يبدأ بـ AIza) لتخطي نظام الكوبونات.
+          </p>
           
-          {/* Feedback Messages */}
           {error && (
              <div className="mt-3 text-red-600 text-sm font-medium flex items-center gap-1 bg-red-50 p-2 rounded animate-in fade-in">
                  <XCircle size={16} />

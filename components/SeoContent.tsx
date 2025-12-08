@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, GraduationCap, School, Lightbulb, Link2, PlayCircle } from 'lucide-react';
+import { BookOpen, GraduationCap, School, Lightbulb, Link2, PlayCircle, HelpCircle } from 'lucide-react';
 
 export const SeoContent: React.FC = () => {
   return (
@@ -62,6 +62,28 @@ export const SeoContent: React.FC = () => {
                 <Link2 size={16} className="text-gray-500" />
                 <code className="text-blue-700 select-all">https://tool-v1.5199.online</code>
               </div>
+            </div>
+          </section>
+
+          {/* New FAQ Section for SEO Rich Snippets */}
+          <section className="pt-8 border-t border-gray-100">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <HelpCircle className="text-purple-600" />
+                الأسئلة الشائعة (FAQ)
+            </h2>
+            <div className="space-y-4">
+                <div className="border border-gray-200 rounded-lg p-4">
+                    <h3 className="font-bold text-gray-800 mb-2">كيف يمكنني تلخيص ملف PDF كبير مجاناً؟</h3>
+                    <p className="text-gray-600">يمكنك استخدام أداة الملخص الدراسي الذكي. قم برفع ملف الـ PDF، وسيقوم الذكاء الاصطناعي بقراءته وتلخيصه واستخراج أهم النقاط والأسئلة في ثوانٍ.</p>
+                </div>
+                <div className="border border-gray-200 rounded-lg p-4">
+                    <h3 className="font-bold text-gray-800 mb-2">هل تدعم الأداة المناهج المصرية والسعودية؟</h3>
+                    <p className="text-gray-600">نعم، الأداة مصممة للتعامل بكفاءة عالية مع اللغة العربية والمناهج الدراسية العربية بما في ذلك المعادلات الرياضية والمصطلحات العلمية.</p>
+                </div>
+                <div className="border border-gray-200 rounded-lg p-4">
+                    <h3 className="font-bold text-gray-800 mb-2">هل يمكن تحويل الصور إلى نص (OCR)؟</h3>
+                    <p className="text-gray-600">نعم، يمكنك رفع صور للمحاضرات أو الكتب، وستقوم الأداة باستخراج النص منها وتحليله وشرحه.</p>
+                </div>
             </div>
           </section>
         </div>

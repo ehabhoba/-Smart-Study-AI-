@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { StudyAnalysisResult, SummaryType, DeepDiveResponse, ComplexityLevel } from "../types";
 
@@ -51,60 +52,61 @@ export const analyzeText = async (
   }
 
   const systemPrompt = `
-    You are an **Elite Polymath Academic Consultant**. Your capability extends across all disciplines: **Mathematics, Applied Sciences, History, Geography, Economics, Literature, and Linguistics**.
+    You are an **Elite Polymath Academic Consultant**. Your capability extends across all disciplines: **Engineering, Mathematics, Applied Sciences, History, Geography, Economics, and Literature**.
     
     **CORE DIRECTIVE: STRICT LANGUAGE MIRRORING**
-    - Detect the dominant language of the input (Arabic, English, French, Spanish, etc.).
+    - Detect the dominant language of the input (Arabic, English, French, etc.).
     - **ALL OUTPUT** (Summary, Overview, Q&A, Chart Labels) **MUST BE** in that **SAME LANGUAGE**.
-    - Do not translate unless explicitly asked. If input is Arabic, output Arabic.
 
     **Task Objectives:**
-    1. **Deep Analysis:** Analyze the provided text/images with Ph.D. level precision.
+    1. **Deep Analysis:** Analyze the text/images with Ph.D. level precision.
     2. **Generate Output:** Create a structured study guide based on: "${summaryType}".
-    3. **Professional Formatting:** Use advanced Markdown to create a visually stunning document.
+    3. **Professional Formatting:** Use advanced Markdown.
 
-    **DOMAIN-SPECIFIC HANDLING RULES:**
+    **ENGINEERING & DIAGRAMMING MASTERY (Mermaid.js):**
+    You are a master of visual explanation. You MUST use **Mermaid.js** charts to visualize complex concepts.
+    
+    **Diagram Selection Strategy:**
+    - **Processes/Flows:** Use \`graph TD\` or \`graph LR\`.
+    - **Software/Structure:** Use \`classDiagram\`.
+    - **Databases/Relationships:** Use \`erDiagram\`.
+    - **States/Lifecycles:** Use \`stateDiagram-v2\`.
+    - **Timelines (History):** Use \`timeline\`.
+    - **Brainstorming/Hierarchy:** Use \`mindmap\`.
 
-    🧮 **MATHEMATICS & PHYSICS:**
-    - Render formulas clearly using standard text notation or simple LaTeX if needed (e.g., E = mc², a² + b² = c²).
-    - Show **step-by-step** solutions for examples found in the text.
-    - Highlight variables and constants in **Bold**.
-    - Ensure symbols (∫, ∑, ∂, π, θ, ∞) are used correctly.
+    **STRICT MERMAID SYNTAX RULES (CRITICAL FOR RENDERING):**
+    1. **QUOTES:** You **MUST** wrap ALL node text in double quotes. 
+       - ✅ Correct: A["Start Process"] --> B["Analyze Data (Input)"]
+       - ❌ Incorrect: A[Start Process] --> B(Analyze Data (Input))
+    2. **IDS:** Node IDs must be alphanumeric only (A1, NodeB). No special chars in IDs.
+    3. **STYLING:** Add a styling section at the end of graphs to make them professional (e.g., \`classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px;\`).
+    4. **NO MARKDOWN IN CODE:** Do NOT put the word "mermaid" inside the code block content.
+    5. **ARABIC SUPPORT:** For Arabic charts, ensure logical flow.
 
-    🌍 **HISTORY & GEOGRAPHY:**
-    - For History: Construct **Chronological Timelines** using lists. Link causes to effects.
-    - For Geography: Describe spatial relationships. If coordinates or locations are mentioned, list them clearly.
-    - Use "Callout Boxes" (Blockquotes) for key dates and figures.
+    **Example of desired Graph Output:**
+    \`\`\`mermaid
+    graph TD
+      A["بداية النظام"] --> B["تحليل البيانات"]
+      B --> C{"هل البيانات صالحة؟"}
+      C -- "نعم" --> D["المعالجة المركزية"]
+      C -- "لا" --> E["رفض المدخلات"]
+      style A fill:#d1fae5,stroke:#059669,stroke-width:2px
+      style D fill:#dbeafe,stroke:#2563eb,stroke-width:2px
+    \`\`\`
 
-    💰 **ECONOMICS & DATA:**
-    - Preserve all currency symbols ($, €, £, EGP, SAR, AED) and numerical formats exactly.
-    - **MANDATORY:** Use **Markdown Tables** to compare data, years, prices, or statistics. Never list data in paragraphs if a table is possible.
-
-    💻 **PROGRAMMING & TECHNICAL:**
-    - Use Code Blocks for any code snippets.
-    - Explain algorithms using step-by-step logic.
-
-    **FORMATTING STANDARDS (The "Golden Rules"):**
-    - **Headers:** Use Emoji prefixes for H2 and H3 (e.g., 📊 **Analysis**, 🏛 **History**, 🧪 **Formula**).
-    - **Tables:** Use them aggressively for comparisons.
-    - **Visuals:** Use **Mermaid.js** for EVERY complex concept.
-      - *History:* Use \`timeline\` or \`mindmap\`.
-      - *Process:* Use \`graph TD\` or \`sequenceDiagram\`.
-      - *Structure:* Use \`classDiagram\`.
-      - *Database:* Use \`erDiagram\`.
-      - *State:* Use \`stateDiagram-v2\`.
-    - **Mermaid Rules:** All text inside diagrams must be in the **Detected Language**. All text in nodes must be wrapped in quotes (e.g., A["النص العربي"]).
+    **DOMAIN-SPECIFIC HANDLING:**
+    - 🧮 **MATH:** Render formulas clearly (LaTeX style without $). Step-by-step solutions.
+    - 🌍 **HISTORY:** Chronological Timelines.
+    - 💰 **ECONOMICS:** Tables for data comparison. Preserve currencies.
+    - 💻 **CODE:** Code blocks with comments.
 
     ${extractedImagesCount ? `**IMAGE INTEGRATION:**
-    - ${extractedImagesCount} images have been extracted from the source file.
-    - You **MUST** integrate them into the summary where they are logically relevant.
-    - Use the syntax: \`![Figure X description](index)\` where index is 0, 1, 2...
-    - Example: "As shown in the diagram below:\n\n![Market Trend Graph](0)"` : ''}
+    - ${extractedImagesCount} images extracted. Integrate them logically using \`![Figure description](index)\`.` : ''}
 
     **Output Structure (JSON):**
-    - **overview**: A professional executive summary (Subject, Level, Core Topics).
-    - **summary**: The main body. Rich Markdown. Tables. Mermaid Charts. Formulas.
-    - **qa**: 5-10 High-Quality Review Questions (Mix of Definitions, Problem Solving, and Critical Thinking) with Answers.
+    - **overview**: Executive summary.
+    - **summary**: Main body with rich Markdown, Tables, and **Professional Mermaid Charts**.
+    - **qa**: 5-10 High-Quality Review Questions (Q&A).
   `;
 
   const userContentParts: any[] = [{ text: systemPrompt }];
@@ -133,9 +135,9 @@ export const analyzeText = async (
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          overview: { type: Type.STRING, description: "Professional executive overview in detected language." },
-          summary: { type: Type.STRING, description: "The comprehensive Markdown analysis including tables, math, and diagrams." },
-          qa: { type: Type.STRING, description: "Exam-style Q&A section with answers." },
+          overview: { type: Type.STRING },
+          summary: { type: Type.STRING },
+          qa: { type: Type.STRING },
         },
         required: ["overview", "summary", "qa"],
       },
@@ -148,7 +150,6 @@ export const analyzeText = async (
       return JSON.parse(cleanedJson) as StudyAnalysisResult;
     } catch (e) {
       console.error("JSON Parsing Error", e);
-      // Fallback or retry logic could go here
       throw new Error("Failed to process the AI response. The analysis might be too complex or the file content is unclear.");
     }
   }
@@ -178,22 +179,18 @@ export const explainConcept = async (
   }
 
   const systemPrompt = `
-    You are an Expert Tutor specialized in accurate definitions.
-    
-    **Task:** Deep Dive into the concept: "${term}".
+    You are an Expert Tutor.
+    **Task:** Deep Dive into: "${term}".
     **Context:** ${context.substring(0, 50000)}
-    
-    **Language Rule:** Output MUST be in the same language as the Context/Term.
+    **Language:** Same as Context.
 
     **Instructions:**
     1. ${complexityPrompt}
-    2. **Formatting:** Use Bold for keywords. Use bullet points.
-    3. **Domain Specifics:**
-       - If Math: Show the formula and a solved example.
-       - If History: Give the date, key figures, and significance.
-       - If Science: Explain the mechanism/process.
-    4. **Visualization:** Suggest a small Mermaid diagram code if it helps explain (e.g., a small flowchart).
-    5. **Related:** Suggest 4 related concepts.
+    2. **Visuals:** Provide a *simple* Mermaid diagram code to illustrate the concept.
+       - Use \`graph TD\`.
+       - Wrap ALL text in quotes: A["Concept"] --> B["Details"].
+       - Style the graph: \`classDef default fill:#fff,stroke:#333;\`
+    3. Suggest 4 related concepts.
   `;
 
   const response = await ai.models.generateContent({
@@ -206,7 +203,7 @@ export const explainConcept = async (
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          explanation: { type: Type.STRING, description: "Rich markdown explanation." },
+          explanation: { type: Type.STRING },
           relatedTerms: { type: Type.ARRAY, items: { type: Type.STRING } }
         },
         required: ["explanation", "relatedTerms"]
@@ -229,8 +226,6 @@ export const explainConcept = async (
 
 export const generateSpeech = async (apiKey: string, text: string, voiceName: string = 'Zephyr'): Promise<string> => {
     const ai = new GoogleGenAI({ apiKey });
-
-    // Truncate text if too long for a single TTS request (approx limit)
     const textToSpeak = text.length > 2000 ? text.substring(0, 2000) + "..." : text;
 
     const response = await ai.models.generateContent({

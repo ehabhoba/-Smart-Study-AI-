@@ -9,6 +9,10 @@ import { DeepDivePanel } from './components/DeepDivePanel';
 import { SeoContent } from './components/SeoContent';
 import { HistoryList } from './components/HistoryList';
 import { OnboardingTour } from './components/OnboardingTour';
+import { AboutPage } from './components/pages/AboutPage';
+import { ContactPage } from './components/pages/ContactPage';
+import { PrivacyPage } from './components/pages/PrivacyPage';
+import { PricingPage } from './components/pages/PricingPage';
 import { extractTextFromPDF } from './services/pdfService';
 import { extractTextFromPPTX } from './services/pptxService';
 import { analyzeText, explainConcept } from './services/geminiService';
@@ -17,6 +21,9 @@ import { BookOpen, Github, Globe, Lock } from 'lucide-react';
 import { SubscriptionState, DAILY_FREE_LIMIT, TRIAL_KEY } from './config/subscriptionConfig';
 
 const App: React.FC = () => {
+  // Navigation State
+  const [currentPage, setCurrentPage] = useState('home');
+
   // Subscription State Initialization with Daily Reset Check
   const [subscription, setSubscription] = useState<SubscriptionState>(() => {
     const saved = localStorage.getItem('smart_study_sub');
@@ -76,8 +83,13 @@ const App: React.FC = () => {
   
   // History State
   const [history, setHistory] = useState<StudyAnalysisResult[]>(() => {
-    const saved = localStorage.getItem('smart_study_history');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('smart_study_history');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to load history", e);
+      return [];
+    }
   });
 
   // Check for first time visit to show tour
@@ -94,9 +106,24 @@ const App: React.FC = () => {
   };
 
   const saveToHistory = (result: StudyAnalysisResult) => {
-    const newHistory = [result, ...history].slice(0, 10); // Keep last 10
+    // IMPORTANT: Create a lightweight version of the result for history
+    // LocalStorage has a 5MB limit. Storing extracted images (Base64) will crash it immediately.
+    const historyItem: StudyAnalysisResult = {
+        ...result,
+        extractedImages: [] // Clear images for storage to save space
+    };
+
+    const newHistory = [historyItem, ...history].slice(0, 10); // Keep last 10
     setHistory(newHistory);
-    localStorage.setItem('smart_study_history', JSON.stringify(newHistory));
+    try {
+      localStorage.setItem('smart_study_history', JSON.stringify(newHistory));
+    } catch (e) {
+      console.error("Storage Quota Exceeded. Clearing old history.", e);
+      // Fallback: Clear history and try saving just the new one
+      const resetHistory = [historyItem];
+      setHistory(resetHistory);
+      localStorage.setItem('smart_study_history', JSON.stringify(resetHistory));
+    }
   };
 
   const deleteFromHistory = (id: string) => {
@@ -171,6 +198,7 @@ const App: React.FC = () => {
     setExtractedFileImages(item.extractedImages || []);
     setStatus({ step: 'completed', message: 'تم استرجاع الملخص من الأرشيف', progress: 100 });
     window.scrollTo({ top: 300, behavior: 'smooth' });
+    setCurrentPage('home'); // Switch back to home view
   };
 
   const handleStartProcessing = useCallback(async () => {
@@ -196,7 +224,6 @@ const App: React.FC = () => {
     }
 
     // Deduct 1 credit immediately before processing to prevent abuse
-    // Note: In a real backend app, this would happen server-side.
     const newCredits = subscription.remainingCredits - 1;
     updateSubscription({
       ...subscription,
@@ -247,7 +274,32 @@ const App: React.FC = () => {
     } catch (error: any) {
       clearInterval(progressInterval);
       console.error(error);
-      setStatus({ step: 'error', message: `حدث خطأ أثناء التحليل: ${error.message}`, progress: 0 });
+      
+      const errMsg = error.message || '';
+      
+      // Handle Leaked or Quota errors explicitly
+      if (errMsg.includes('leaked') || errMsg.includes('Quota') || errMsg.includes('PERMISSION_DENIED') || errMsg.includes('API key')) {
+         // 1. Refund the credit since the system failed
+         updateSubscription({
+            ...subscription,
+            remainingCredits: subscription.remainingCredits + 1, // Refund credit
+            activeApiKey: '' // Revoke invalid key
+         });
+
+         setStatus({ 
+           step: 'error', 
+           message: 'عفواً، كود التفعيل الحالي لم يعد صالحاً (تم إيقافه). يرجى استخدام كود جديد.', 
+           progress: 0 
+         });
+         
+         alert('⚠️ تنبيه هام:\nلقد تم إيقاف كود التفعيل المستخدم حالياً من المصدر (Google) لأسباب أمنية أو تجاوز الحصة.\n\nلا تقلق، لقد قمنا باسترجاع رصيدك لهذه المحاولة.\n\nيرجى إدخال كود تفعيل جديد في خانة الاشتراك للمتابعة.');
+         
+         const subSection = document.getElementById('subscription-section');
+         if (subSection) subSection.scrollIntoView({ behavior: 'smooth' });
+
+      } else {
+         setStatus({ step: 'error', message: `حدث خطأ أثناء التحليل: ${errMsg}`, progress: 0 });
+      }
     }
   }, [subscription, sourceText, sourceImage, summaryType, maxSections, extractedFileImages, fileName, history]);
 
@@ -277,108 +329,127 @@ const App: React.FC = () => {
     }
   }, [subscription.activeApiKey, sourceText, deepDiveComplexity, analysisResult]);
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
-      <Header />
+  // Handle Navigation
+  const handleNavigate = (page: string) => {
+     setCurrentPage(page);
+     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-      {/* Onboarding Tour Modal */}
-      {showTour && <OnboardingTour onClose={closeTour} />}
+  const renderContent = () => {
+    switch (currentPage) {
+      case 'about': return <AboutPage />;
+      case 'contact': return <ContactPage />;
+      case 'privacy': return <PrivacyPage />;
+      case 'pricing': return <PricingPage onNavigateHome={() => handleNavigate('home')} />;
+      case 'home':
+      default:
+        return (
+          <main className="container mx-auto px-4 py-8 max-w-5xl flex-grow">
+            {/* Subscription / Access Control Section */}
+            <section className="mb-8 animate-fade-in-up" id="subscription-section">
+              <ApiKeyInput subscription={subscription} updateSubscription={updateSubscription} />
+            </section>
 
-      <main className="container mx-auto px-4 py-8 max-w-5xl flex-grow">
-        
-        {/* Subscription / Access Control Section */}
-        <section className="mb-8 animate-fade-in-up" id="subscription-section">
-          <ApiKeyInput subscription={subscription} updateSubscription={updateSubscription} />
-        </section>
-
-        {/* Upload & Config Grid */}
-        <div className={`grid md:grid-cols-2 gap-6 mb-8 transition-opacity duration-300 ${subscription.remainingCredits <= 0 ? 'opacity-50 pointer-events-none filter blur-[1px]' : ''}`}>
-          <div id="upload-section" className="h-full">
-            <FileUpload 
-              onFileLoaded={handleFileLoaded} 
-              fileName={fileName}
-              disabled={status.step === 'analyzing' || status.step === 'extracting'}
-              onClear={handleClearFile}
-            />
-          </div>
-          
-          <div id="settings-section" className="bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col justify-between h-full relative">
-             {/* Lock Overlay if no credits */}
-             {subscription.remainingCredits <= 0 && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-50/50">
-                    <Lock className="text-gray-400 w-16 h-16" />
-                </div>
-             )}
-
-            <div>
-              <h2 className="text-xl font-bold mb-4 text-blue-800 flex items-center gap-2">
-                <BookOpen className="w-5 h-5" />
-                2. إعدادات التلخيص والرسم
-              </h2>
-              
-              <div className="mb-4">
-                <label className="block text-gray-700 font-medium mb-2">نوع الملخص:</label>
-                <select 
-                  value={summaryType}
-                  onChange={(e) => setSummaryType(e.target.value as SummaryType)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all"
-                  disabled={status.step === 'analyzing'}
-                >
-                  <option value={SummaryType.EXAM}>🚀 تلخيص مكثف (Exam Capsule)</option>
-                  <option value={SummaryType.MEDIUM}>📖 تلخيص متوسط (المفاهيم الأساسية)</option>
-                  <option value={SummaryType.FULL}>🎓 تلخيص شامل (تفصيلي وهندسي)</option>
-                </select>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-gray-700 font-medium mb-2">الحد الأقصى للفقرات (اختياري):</label>
-                <input 
-                  type="number" 
-                  value={maxSections || ''}
-                  onChange={(e) => setMaxSections(e.target.value ? parseInt(e.target.value) : undefined)}
-                  placeholder="مثال: 10" 
-                  min="1" 
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all"
-                  disabled={status.step === 'analyzing'}
+            {/* Upload & Config Grid */}
+            <div className={`grid md:grid-cols-2 gap-6 mb-8 transition-opacity duration-300 ${subscription.remainingCredits <= 0 ? 'opacity-50 pointer-events-none filter blur-[1px]' : ''}`}>
+              <div id="upload-section" className="h-full">
+                <FileUpload 
+                  onFileLoaded={handleFileLoaded} 
+                  fileName={fileName}
+                  disabled={status.step === 'analyzing' || status.step === 'extracting'}
+                  onClear={handleClearFile}
                 />
+              </div>
+              
+              <div id="settings-section" className="bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col justify-between h-full relative">
+                 {/* Lock Overlay if no credits */}
+                 {subscription.remainingCredits <= 0 && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-50/50">
+                        <Lock className="text-gray-400 w-16 h-16" />
+                    </div>
+                 )}
+
+                <div>
+                  <h2 className="text-xl font-bold mb-4 text-blue-800 flex items-center gap-2">
+                    <BookOpen className="w-5 h-5" />
+                    2. إعدادات التلخيص والرسم
+                  </h2>
+                  
+                  <div className="mb-4">
+                    <label className="block text-gray-700 font-medium mb-2">نوع الملخص:</label>
+                    <select 
+                      value={summaryType}
+                      onChange={(e) => setSummaryType(e.target.value as SummaryType)}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all"
+                      disabled={status.step === 'analyzing'}
+                    >
+                      <option value={SummaryType.EXAM}>🚀 تلخيص مكثف (Exam Capsule)</option>
+                      <option value={SummaryType.MEDIUM}>📖 تلخيص متوسط (المفاهيم الأساسية)</option>
+                      <option value={SummaryType.FULL}>🎓 تلخيص شامل (تفصيلي وهندسي)</option>
+                    </select>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-gray-700 font-medium mb-2">الحد الأقصى للفقرات (اختياري):</label>
+                    <input 
+                      type="number" 
+                      value={maxSections || ''}
+                      onChange={(e) => setMaxSections(e.target.value ? parseInt(e.target.value) : undefined)}
+                      placeholder="مثال: 10" 
+                      min="1" 
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all"
+                      disabled={status.step === 'analyzing'}
+                    />
+                  </div>
+                </div>
+
+                <button 
+                  onClick={handleStartProcessing}
+                  disabled={(!sourceText && !sourceImage) || subscription.remainingCredits <= 0 || status.step === 'analyzing' || status.step === 'extracting'}
+                  className={`w-full font-bold py-4 rounded-lg shadow transition transform active:scale-95 flex justify-center items-center gap-2
+                    ${((!sourceText && !sourceImage) || subscription.remainingCredits <= 0) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}
+                  `}
+                >
+                   <span>✨ ابدأ التحليل (يخصم 1 رصيد)</span>
+                </button>
               </div>
             </div>
 
-            <button 
-              onClick={handleStartProcessing}
-              disabled={(!sourceText && !sourceImage) || subscription.remainingCredits <= 0 || status.step === 'analyzing' || status.step === 'extracting'}
-              className={`w-full font-bold py-4 rounded-lg shadow transition transform active:scale-95 flex justify-center items-center gap-2
-                ${((!sourceText && !sourceImage) || subscription.remainingCredits <= 0) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}
-              `}
-            >
-               <span>✨ ابدأ التحليل (يخصم 1 رصيد)</span>
-            </button>
-          </div>
-        </div>
+            {/* Status Area */}
+            {status.step !== 'idle' && (
+              <ProcessingArea status={status} />
+            )}
 
-        {/* Status Area */}
-        {status.step !== 'idle' && (
-          <ProcessingArea status={status} />
-        )}
+            {/* Results Area */}
+            {analysisResult && (
+              <ResultsDisplay 
+                result={analysisResult} 
+                apiKey={subscription.activeApiKey}
+                onOpenDeepDive={(term) => term ? handleDeepDive(term) : setIsDeepDiveOpen(true)}
+              />
+            )}
 
-        {/* Results Area */}
-        {analysisResult && (
-          <ResultsDisplay 
-            result={analysisResult} 
-            apiKey={subscription.activeApiKey}
-            onOpenDeepDive={(term) => term ? handleDeepDive(term) : setIsDeepDiveOpen(true)}
-          />
-        )}
+            {/* History Area */}
+            {history.length > 0 && (
+              <HistoryList history={history} onLoad={handleLoadHistory} onDelete={deleteFromHistory} />
+            )}
 
-        {/* History Area */}
-        {history.length > 0 && (
-          <HistoryList history={history} onLoad={handleLoadHistory} onDelete={deleteFromHistory} />
-        )}
+            {/* SEO Content Section */}
+            <SeoContent />
+          </main>
+        );
+    }
+  };
 
-      </main>
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+      <Header currentPage={currentPage} onNavigate={handleNavigate} />
 
-      {/* SEO Content Section (Blog/Articles) */}
-      <SeoContent />
+      {/* Onboarding Tour Modal */}
+      {showTour && currentPage === 'home' && <OnboardingTour onClose={closeTour} />}
+
+      {/* Dynamic Content */}
+      {renderContent()}
 
       <DeepDivePanel 
         isOpen={isDeepDiveOpen} 
@@ -393,8 +464,15 @@ const App: React.FC = () => {
       />
 
       {/* SEO Footer */}
-      <footer className="bg-gray-100 border-t border-gray-200 py-8 mt-12 text-center text-gray-500 text-sm">
+      <footer className="bg-gray-100 border-t border-gray-200 py-8 mt-auto text-center text-gray-500 text-sm">
         <div className="container mx-auto px-4">
+          <div className="flex justify-center gap-6 mb-6 font-medium">
+             <button onClick={() => handleNavigate('home')} className="hover:text-blue-600">الرئيسية</button>
+             <button onClick={() => handleNavigate('pricing')} className="hover:text-blue-600">الأسعار</button>
+             <button onClick={() => handleNavigate('about')} className="hover:text-blue-600">من نحن</button>
+             <button onClick={() => handleNavigate('contact')} className="hover:text-blue-600">اتصل بنا</button>
+             <button onClick={() => handleNavigate('privacy')} className="hover:text-blue-600">الخصوصية</button>
+          </div>
           <p className="mb-4">
             المُلخص الدراسي الذكي © 2024 تم تصميمه وتطويره بواسطة <a href="https://ehabgm.online" className="text-blue-600 hover:underline font-bold" target="_blank" rel="noopener noreferrer">ehabgm.online</a> - مدعوم بواسطة Google Gemini 2.5 Flash
           </p>
@@ -403,11 +481,6 @@ const App: React.FC = () => {
             <span className="flex items-center gap-1 hover:text-blue-600 transition"><BookOpen size={16} /> شرح مناهج</span>
             <span className="flex items-center gap-1 hover:text-blue-600 transition"><Github size={16} /> ذكاء اصطناعي</span>
           </div>
-          <p className="max-w-2xl mx-auto text-xs leading-relaxed text-gray-400">
-            هذه الأداة تستخدم الذكاء الاصطناعي لتحليل الكتب الدراسية (PDF/PPTX) واستخراج المعلومات الهامة. 
-            تساعد الطلاب في المذاكرة، تلخيص المناهج، حل الأسئلة، ورسم الخرائط الذهنية والمخططات الهندسية.
-            الكلمات المفتاحية: تلخيص كتب، شرح دروس، ذكاء اصطناعي للتعليم، Smart Study AI، Gemini API.
-          </p>
         </div>
       </footer>
     </div>

@@ -3,19 +3,31 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { StudyAnalysisResult } from '../types';
-import { FileText, List, HelpCircle, Volume2, Search, Copy, Check, Download, Loader2, Square, Info, Image as ImageIcon, ZoomIn, AlertTriangle, Printer, Camera, FileQuestion, FileDown, Gauge } from 'lucide-react';
+import { FileText, List, HelpCircle, Volume2, Search, Copy, Check, Download, Loader2, Square, Info, Image as ImageIcon, ZoomIn, AlertTriangle, Printer, Camera, FileQuestion, FileDown, Gauge, Maximize2 } from 'lucide-react';
 import { generateSpeech } from '../services/geminiService';
 import { playAudioFromBase64, stopAudio } from '../services/audioService';
 import { marked } from 'marked';
 import mermaid from 'mermaid';
 import html2canvas from 'html2canvas';
 
-// Initialize mermaid with Arial font
+// Initialize mermaid with professional engineering theme
 mermaid.initialize({
   startOnLoad: false,
-  theme: 'default',
+  theme: 'base',
+  themeVariables: {
+    fontFamily: 'Cairo, Arial, sans-serif',
+    primaryColor: '#e0e7ff', // indigo-100
+    primaryTextColor: '#1e3a8a', // blue-900
+    primaryBorderColor: '#4338ca', // indigo-700
+    lineColor: '#64748b', // slate-500
+    secondaryColor: '#f0fdf4', // green-50
+    tertiaryColor: '#fffbeb', // amber-50
+  },
   securityLevel: 'loose',
-  fontFamily: 'Arial, sans-serif'
+  flowchart: {
+    htmlLabels: true,
+    curve: 'basis'
+  }
 });
 
 const MermaidChart = ({ chart, onInteract }: { chart: string, onInteract?: (term: string) => void }) => {
@@ -28,10 +40,12 @@ const MermaidChart = ({ chart, onInteract }: { chart: string, onInteract?: (term
     const renderChart = async () => {
       try {
         setIsError(false);
-        const { svg } = await mermaid.render(id, chart);
+        // Clean the chart string to remove possible markdown wrappers if they slipped through
+        const cleanChart = chart.replace(/```mermaid|```/g, '').trim();
+        const { svg } = await mermaid.render(id, cleanChart);
         setSvg(svg);
       } catch (error) {
-        console.error('Failed to render mermaid chart', error);
+        console.error('Mermaid Render Failed:', error);
         setIsError(true);
       }
     };
@@ -44,13 +58,13 @@ const MermaidChart = ({ chart, onInteract }: { chart: string, onInteract?: (term
 
     const svgElement = containerRef.current.querySelector('svg');
     if (svgElement) {
-      // 1. Make Responsive
+      // 1. Make Responsive & Centered
       svgElement.style.width = '100%';
       svgElement.style.maxWidth = '100%';
       svgElement.style.height = 'auto';
-      // Ensure viewBox is preserved (mermaid usually sets it) but override width/height attributes
       svgElement.removeAttribute('height'); 
-      // We keep viewBox to ensure aspect ratio scaling
+      svgElement.style.display = 'block';
+      svgElement.style.margin = '0 auto';
     }
 
     if (!onInteract) return;
@@ -76,8 +90,8 @@ const MermaidChart = ({ chart, onInteract }: { chart: string, onInteract?: (term
 
         // Add visual hover effect
         el.onmouseenter = () => { 
-          el.style.opacity = '0.7'; 
-          el.style.filter = 'brightness(1.1)';
+          el.style.opacity = '0.8'; 
+          el.style.filter = 'drop-shadow(0 0 2px rgba(37, 99, 235, 0.5))';
         };
         el.onmouseleave = () => { 
           el.style.opacity = '1'; 
@@ -102,23 +116,41 @@ const MermaidChart = ({ chart, onInteract }: { chart: string, onInteract?: (term
         </div>
         <p className="text-red-800 font-bold text-sm">عذراً، تعذر رسم المخطط البياني</p>
         <p className="text-red-600 text-xs mt-1 max-w-xs">
-          البيانات الواردة من النموذج تحتوي على تنسيق معقد أو غير مدعوم حالياً.
+           البيانات الهندسية معقدة جداً أو تحتوي على رموز غير مدعومة.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center my-8 w-full">
+    <div className="flex flex-col items-center my-8 w-full group relative">
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity no-print z-10">
+           <button 
+             onClick={() => {
+                const w = window.open("");
+                w?.document.write(`
+                  <html>
+                    <body style="display:flex;justify-content:center;align-items:center;height:100vh;margin:0;">
+                      ${svg}
+                    </body>
+                  </html>
+                `);
+             }}
+             className="p-2 bg-white text-gray-600 rounded-full shadow-md hover:text-blue-600 border border-gray-200"
+             title="تكبير الرسم البياني"
+           >
+             <Maximize2 size={16} />
+           </button>
+        </div>
         <div 
             ref={containerRef}
-            className="mermaid-wrapper w-full p-4 md:p-6 bg-white rounded-lg border border-gray-200 shadow-sm overflow-x-auto flex justify-center" 
+            className="mermaid-wrapper w-full p-4 md:p-8 bg-gradient-to-br from-white to-gray-50 rounded-xl border border-gray-200 shadow-sm overflow-x-auto flex justify-center" 
             dangerouslySetInnerHTML={{ __html: svg }} 
         />
-        <p className="text-xs text-gray-400 mt-2 flex items-center gap-1.5 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 no-print">
-            <Info size={12} className="text-blue-500" />
-            <span className="font-medium text-blue-600">تفاعلي:</span>
-            اضغط على أي جزء في الرسم الهندسي لشرحه بالتفصيل
+        <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1.5 bg-gray-50 px-3 py-1 rounded-full border border-gray-100 no-print">
+            <Info size={10} className="text-gray-400" />
+            <span className="font-medium">تفاعلي:</span>
+            الرسم البياني قابل للنقر للشرح المفصل
         </p>
     </div>
   );
