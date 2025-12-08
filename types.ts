@@ -1,3 +1,16 @@
+
+export interface Flashcard {
+  term: string;
+  definition: string;
+}
+
+export interface QuizItem {
+  question: string;
+  options: string[];
+  correctAnswer: string; // The text of the correct answer
+  explanation?: string; // Why is it correct?
+}
+
 export interface StudyAnalysisResult {
   id?: string; // Unique ID for history
   date?: string; // Timestamp
@@ -5,13 +18,18 @@ export interface StudyAnalysisResult {
   overview: string;
   summary: string;
   qa: string;
+  flashcards?: Flashcard[]; // New: Structured Flashcards
+  quiz?: QuizItem[];        // New: Structured Interactive Quiz
   extractedImages?: string[]; // Array of Base64 image strings extracted from the file
 }
 
 export enum SummaryType {
-  EXAM = 'exam',
-  MEDIUM = 'medium',
-  FULL = 'full',
+  FULL_ANALYSIS = 'full_analysis', // تحليل شامل (الوضع الافتراضي القديم)
+  PRECISE_SUMMARY = 'precise_summary', // تلخيص دقيق (25% من المحتوى)
+  EXAM_CAPSULE = 'exam_capsule', // كبسولة الامتحان (مركز جداً)
+  MALZAMA = 'malzama',           // تحويل لملزمة شرح (Study Guide)
+  WORKSHEET = 'worksheet',       // ورقة عمل وتدريبات
+  QA_ONLY = 'qa_only',           // استخراج أسئلة فقط
 }
 
 export enum ComplexityLevel {

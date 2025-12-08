@@ -133,7 +133,7 @@ const App: React.FC = () => {
   };
 
   // Configuration State
-  const [summaryType, setSummaryType] = useState<SummaryType>(SummaryType.MEDIUM);
+  const [summaryType, setSummaryType] = useState<SummaryType>(SummaryType.FULL_ANALYSIS);
   const [maxSections, setMaxSections] = useState<number | undefined>(undefined);
 
   // Deep Dive State
@@ -231,7 +231,7 @@ const App: React.FC = () => {
     });
 
     // Initial status
-    setStatus({ step: 'analyzing', message: 'بدء التحليل الذكي للهيكل العام...', progress: 40 });
+    setStatus({ step: 'analyzing', message: 'بدء التحليل الذكي وتحديد نوع المادة...', progress: 40 });
 
     const progressInterval = setInterval(() => {
       setStatus(prev => {
@@ -242,8 +242,8 @@ const App: React.FC = () => {
         let newMessage = prev.message;
         if (newProgress > 45 && newProgress < 60) newMessage = 'جاري استخراج المفاهيم الأساسية والمصطلحات...';
         else if (newProgress >= 60 && newProgress < 75) newMessage = 'جاري رسم المخططات الهندسية والبيانية (Mermaid)...';
-        else if (newProgress >= 75 && newProgress < 85) newMessage = 'جاري صياغة أسئلة المراجعة الذكية...';
-        else if (newProgress >= 85 && newProgress < 95) newMessage = 'يتم تجميع وتنسيق الملخص النهائي...';
+        else if (newProgress >= 75 && newProgress < 85) newMessage = 'جاري صياغة الأسئلة وفق نمط الامتحانات...';
+        else if (newProgress >= 85 && newProgress < 95) newMessage = 'يتم تجميع وتنسيق الملف النهائي...';
         else if (newProgress >= 95) newMessage = 'لمسات أخيرة...';
 
         return { ...prev, progress: newProgress, message: newMessage };
@@ -372,30 +372,41 @@ const App: React.FC = () => {
                 <div>
                   <h2 className="text-xl font-bold mb-4 text-blue-800 flex items-center gap-2">
                     <BookOpen className="w-5 h-5" />
-                    2. إعدادات التلخيص والرسم
+                    2. إعدادات المدرس الذكي
                   </h2>
                   
                   <div className="mb-4">
-                    <label className="block text-gray-700 font-medium mb-2">نوع الملخص:</label>
+                    <label className="block text-gray-700 font-medium mb-2">ماذا تريد من الذكاء الاصطناعي؟</label>
                     <select 
                       value={summaryType}
                       onChange={(e) => setSummaryType(e.target.value as SummaryType)}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all text-gray-800 font-medium"
                       disabled={status.step === 'analyzing'}
                     >
-                      <option value={SummaryType.EXAM}>🚀 تلخيص مكثف (Exam Capsule)</option>
-                      <option value={SummaryType.MEDIUM}>📖 تلخيص متوسط (المفاهيم الأساسية)</option>
-                      <option value={SummaryType.FULL}>🎓 تلخيص شامل (تفصيلي وهندسي)</option>
+                      <option value={SummaryType.FULL_ANALYSIS}>🧠 تحليل شامل ومفصل (افتراضي)</option>
+                      <option value={SummaryType.PRECISE_SUMMARY}>🔍 تلخيص دقيق (شامل - 25% من المحتوى)</option>
+                      <option value={SummaryType.EXAM_CAPSULE}>💊 كبسولة الامتحان (ملخص المراجعة النهائية)</option>
+                      <option value={SummaryType.MALZAMA}>📚 تحويل إلى ملزمة (Study Guide)</option>
+                      <option value={SummaryType.WORKSHEET}>📝 ورقة عمل وتدريبات (Worksheet)</option>
+                      <option value={SummaryType.QA_ONLY}>❓ استخراج أسئلة وأجوبة فقط</option>
                     </select>
+                    <p className="text-xs text-gray-500 mt-2">
+                        {summaryType === SummaryType.PRECISE_SUMMARY && "يحافظ على 25% من المحتوى الأصلي بدقة، مثالي للكتب الكبيرة والمراجع."}
+                        {summaryType === SummaryType.FULL_ANALYSIS && "تحليل متوازن يجمع بين الشرح والتلخيص."}
+                        {summaryType === SummaryType.EXAM_CAPSULE && "سيركز على أهم التعريفات، القوانين، وما يتكرر في الامتحانات."}
+                        {summaryType === SummaryType.MALZAMA && "يعيد صياغة المحتوى بأسلوب شرح الدروس مع أمثلة توضيحية."}
+                        {summaryType === SummaryType.WORKSHEET && "يصمم تدريبات للطالب للتفاعل مع المحتوى."}
+                        {summaryType === SummaryType.QA_ONLY && "ينتج بنك أسئلة ضخم للمراجعة."}
+                    </p>
                   </div>
 
                   <div className="mb-4">
-                    <label className="block text-gray-700 font-medium mb-2">الحد الأقصى للفقرات (اختياري):</label>
+                    <label className="block text-gray-700 font-medium mb-2">الحد الأقصى للأقسام (اختياري):</label>
                     <input 
                       type="number" 
                       value={maxSections || ''}
                       onChange={(e) => setMaxSections(e.target.value ? parseInt(e.target.value) : undefined)}
-                      placeholder="مثال: 10" 
+                      placeholder="اتركه فارغاً للتحليل التلقائي" 
                       min="1" 
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all"
                       disabled={status.step === 'analyzing'}

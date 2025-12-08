@@ -34,79 +34,79 @@ export const analyzeText = async (
 ): Promise<StudyAnalysisResult> => {
   const ai = new GoogleGenAI({ apiKey });
 
-  let summaryInstructions = "";
+  let promptRole = "";
+  
+  // --- Define Persona and Strategy ---
   switch (summaryType) {
-    case SummaryType.EXAM:
-      summaryInstructions = "Strictly focus on exam-critical content: Definitions, Theorems, Laws, Dates, and Formulas. Exclude introductions and filler text.";
+    case SummaryType.PRECISE_SUMMARY:
+      promptRole = `
+        You are a **Senior Academic Editor** creating a "Dense Extended Summary".
+        **GOAL:** Retain approx 25% of the original text volume. DO NOT over-summarize or be brief.
+        **STRATEGY:** 
+        1. Maintain the original structure (Chapters/Sections).
+        2. Include EVERY key definition, theorem, and essential example.
+        3. Eliminate only fluff, repetition, and filler words.
+        4. Your output must be LONG and DETAILED.
+      `;
       break;
-    case SummaryType.MEDIUM:
-      summaryInstructions = "Provide a balanced professional summary. Explain core concepts clearly, provide examples, and highlight key takeaways.";
+    case SummaryType.EXAM_CAPSULE:
+      promptRole = `
+        You are a **Senior Chief Examiner** creating a "Last Minute Review Capsule".
+        **Focus:** High-yield exam topics, definitions, and laws only. Cut the fluff.
+        **Tone:** Urgent, precise, and authoritative.
+      `;
       break;
-    case SummaryType.FULL:
-      summaryInstructions = "Produce a comprehensive, master-level reference. Cover every chapter, section, and nuance. Include detailed derivations and extensive data analysis.";
+    case SummaryType.MALZAMA:
+      promptRole = `
+        You are a **Professional Private Tutor** creating a "Study Guide (Malzama)".
+        **Focus:** Simplifying concepts, using examples, and organizing logically.
+        **Tone:** Friendly, encouraging, and clear.
+      `;
       break;
-  }
-
-  if (maxSections) {
-    summaryInstructions += ` The summary should be structured into approximately ${maxSections} main sections.`;
+    case SummaryType.WORKSHEET:
+      promptRole = `
+        You are an **Educational Designer** creating a "Student Worksheet".
+        **Focus:** Active learning tasks, fill-in-the-blanks, and practice problems.
+      `;
+      break;
+    case SummaryType.QA_ONLY:
+      promptRole = `
+        You are an **Exam Question Bank Generator**.
+        **Focus:** Comprehensive coverage of all details via questions.
+      `;
+      break;
+    default: // FULL_ANALYSIS
+      promptRole = `
+        You are an **Elite Polymath Academic Consultant**.
+        **Focus:** Detailed, master-level reference with deep analysis.
+      `;
+      break;
   }
 
   const systemPrompt = `
-    You are an **Elite Polymath Academic Consultant**. Your capability extends across all disciplines: **Engineering, Mathematics, Applied Sciences, History, Geography, Economics, and Literature**.
+    ${promptRole}
     
-    **CORE DIRECTIVE: STRICT LANGUAGE MIRRORING**
-    - Detect the dominant language of the input (Arabic, English, French, etc.).
-    - **ALL OUTPUT** (Summary, Overview, Q&A, Chart Labels) **MUST BE** in that **SAME LANGUAGE**.
+    **CORE DIRECTIVE:** Detect the input language (e.g., Arabic). **ALL OUTPUT MUST BE IN THAT SAME LANGUAGE.**
 
-    **Task Objectives:**
-    1. **Deep Analysis:** Analyze the text/images with Ph.D. level precision.
-    2. **Generate Output:** Create a structured study guide based on: "${summaryType}".
-    3. **Professional Formatting:** Use advanced Markdown.
+    **YOUR TASK:** Analyze the content and generate a structured study JSON containing:
+    1. **overview**: A powerful executive summary / introduction.
+    2. **summary**: The core content formatted in Markdown.
+       - Use H2/H3 headers with Emojis.
+       - Use Tables for comparisons.
+       - Use Blockquotes for important notes.
+       - **Mnemonics:** If there are hard lists, invent a creative Mnemonic (abbreviation/rhyme) to help memory.
+       - **Mermaid:** Use \`mermaid\` code blocks for diagrams (Flowcharts, Mindmaps). WRAP NODE TEXT IN QUOTES.
+    3. **qa**: A list of review questions and answers (Markdown format).
+    4. **flashcards**: An array of objects {term, definition} for the 10 most important terms.
+    5. **quiz**: An array of objects {question, options[], correctAnswer, explanation} for 5 multiple-choice questions.
 
-    **ENGINEERING & DIAGRAMMING MASTERY (Mermaid.js):**
-    You are a master of visual explanation. You MUST use **Mermaid.js** charts to visualize complex concepts.
+    ${extractedImagesCount ? `**IMAGES:** The file has ${extractedImagesCount} extracted images. Integrate them into the 'summary' markdown using \`![Figure X](index)\` where logical.` : ''}
+    ${maxSections ? `**LENGTH:** Divide the summary into approx ${maxSections} sections.` : ''}
+    ${summaryType === SummaryType.PRECISE_SUMMARY ? '**IMPORTANT:** For "summary", provide a dense, detailed explanation of ALL topics. Do NOT skip sections.' : ''}
     
-    **Diagram Selection Strategy:**
-    - **Processes/Flows:** Use \`graph TD\` or \`graph LR\`.
-    - **Software/Structure:** Use \`classDiagram\`.
-    - **Databases/Relationships:** Use \`erDiagram\`.
-    - **States/Lifecycles:** Use \`stateDiagram-v2\`.
-    - **Timelines (History):** Use \`timeline\`.
-    - **Brainstorming/Hierarchy:** Use \`mindmap\`.
-
-    **STRICT MERMAID SYNTAX RULES (CRITICAL FOR RENDERING):**
-    1. **QUOTES:** You **MUST** wrap ALL node text in double quotes. 
-       - ✅ Correct: A["Start Process"] --> B["Analyze Data (Input)"]
-       - ❌ Incorrect: A[Start Process] --> B(Analyze Data (Input))
-    2. **IDS:** Node IDs must be alphanumeric only (A1, NodeB). No special chars in IDs.
-    3. **STYLING:** Add a styling section at the end of graphs to make them professional (e.g., \`classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px;\`).
-    4. **NO MARKDOWN IN CODE:** Do NOT put the word "mermaid" inside the code block content.
-    5. **ARABIC SUPPORT:** For Arabic charts, ensure logical flow.
-
-    **Example of desired Graph Output:**
-    \`\`\`mermaid
-    graph TD
-      A["بداية النظام"] --> B["تحليل البيانات"]
-      B --> C{"هل البيانات صالحة؟"}
-      C -- "نعم" --> D["المعالجة المركزية"]
-      C -- "لا" --> E["رفض المدخلات"]
-      style A fill:#d1fae5,stroke:#059669,stroke-width:2px
-      style D fill:#dbeafe,stroke:#2563eb,stroke-width:2px
-    \`\`\`
-
-    **DOMAIN-SPECIFIC HANDLING:**
-    - 🧮 **MATH:** Render formulas clearly (LaTeX style without $). Step-by-step solutions.
-    - 🌍 **HISTORY:** Chronological Timelines.
-    - 💰 **ECONOMICS:** Tables for data comparison. Preserve currencies.
-    - 💻 **CODE:** Code blocks with comments.
-
-    ${extractedImagesCount ? `**IMAGE INTEGRATION:**
-    - ${extractedImagesCount} images extracted. Integrate them logically using \`![Figure description](index)\`.` : ''}
-
-    **Output Structure (JSON):**
-    - **overview**: Executive summary.
-    - **summary**: Main body with rich Markdown, Tables, and **Professional Mermaid Charts**.
-    - **qa**: 5-10 High-Quality Review Questions (Q&A).
+    **MATH/SCIENCE RULES:**
+    - Use LaTeX for formulas (e.g. $x^2$).
+    - Use clear step-by-step logic.
   `;
 
   const userContentParts: any[] = [{ text: systemPrompt }];
@@ -118,11 +118,11 @@ export const analyzeText = async (
         data: content.image.data
       }
     });
-    userContentParts.push({ text: "Analyze this image in detail. Read all numbers, symbols, and text. Describe charts/graphs if present." });
+    userContentParts.push({ text: "Analyze this slide/image. Extract text and diagrams." });
   }
   
   if (content.text) {
-    userContentParts.push({ text: `Source Content to Analyze:\n${content.text.substring(0, 500000)}` });
+    userContentParts.push({ text: `Source Content:\n${content.text.substring(0, 500000)}` });
   }
 
   const response = await ai.models.generateContent({
@@ -138,8 +138,31 @@ export const analyzeText = async (
           overview: { type: Type.STRING },
           summary: { type: Type.STRING },
           qa: { type: Type.STRING },
+          // Enhanced Structured Data
+          flashcards: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    term: { type: Type.STRING },
+                    definition: { type: Type.STRING }
+                }
+            }
+          },
+          quiz: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    question: { type: Type.STRING },
+                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    correctAnswer: { type: Type.STRING },
+                    explanation: { type: Type.STRING }
+                }
+            }
+          }
         },
-        required: ["overview", "summary", "qa"],
+        required: ["overview", "summary", "qa", "flashcards", "quiz"],
       },
     },
   });
@@ -150,11 +173,11 @@ export const analyzeText = async (
       return JSON.parse(cleanedJson) as StudyAnalysisResult;
     } catch (e) {
       console.error("JSON Parsing Error", e);
-      throw new Error("Failed to process the AI response. The analysis might be too complex or the file content is unclear.");
+      throw new Error("Failed to parse AI response. Try again.");
     }
   }
 
-  throw new Error("No response received from AI model.");
+  throw new Error("No response from AI.");
 };
 
 export const explainConcept = async (
@@ -171,10 +194,10 @@ export const explainConcept = async (
       complexityPrompt = "Explain simply (EL5). Use analogies.";
       break;
     case ComplexityLevel.INTERMEDIATE:
-      complexityPrompt = "Explain academically. Define terms and give context.";
+      complexityPrompt = "Explain academically with context and examples.";
       break;
     case ComplexityLevel.ADVANCED:
-      complexityPrompt = "Explain with high technical depth. Include formulas, dates, or advanced theory.";
+      complexityPrompt = "Explain with technical depth, history, and advanced theory.";
       break;
   }
 
@@ -186,11 +209,11 @@ export const explainConcept = async (
 
     **Instructions:**
     1. ${complexityPrompt}
-    2. **Visuals:** Provide a *simple* Mermaid diagram code to illustrate the concept.
-       - Use \`graph TD\`.
-       - Wrap ALL text in quotes: A["Concept"] --> B["Details"].
-       - Style the graph: \`classDef default fill:#fff,stroke:#333;\`
-    3. Suggest 4 related concepts.
+    2. **Mnemonics:** Provide a memory aid (acronym or rhyme) if applicable.
+    3. **Visuals:** Provide a *simple* Mermaid diagram code.
+       - Use \`graph TD\` or \`mindmap\`.
+       - Wrap ALL text in quotes.
+    4. Suggest 4 related concepts.
   `;
 
   const response = await ai.models.generateContent({
