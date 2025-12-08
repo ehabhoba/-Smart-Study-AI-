@@ -278,21 +278,21 @@ const App: React.FC = () => {
       const errMsg = error.message || '';
       
       // Handle Leaked or Quota errors explicitly
-      if (errMsg.includes('leaked') || errMsg.includes('Quota') || errMsg.includes('PERMISSION_DENIED') || errMsg.includes('API key')) {
+      if (errMsg.includes('leaked') || errMsg.includes('Quota') || errMsg.includes('PERMISSION_DENIED') || errMsg.includes('API key') || errMsg.includes('403') || errMsg.includes('429')) {
          // 1. Refund the credit since the system failed
          updateSubscription({
             ...subscription,
             remainingCredits: subscription.remainingCredits + 1, // Refund credit
-            activeApiKey: '' // Revoke invalid key
+            activeApiKey: '' // Revoke invalid key so user sees input again
          });
 
          setStatus({ 
            step: 'error', 
-           message: 'عفواً، كود التفعيل الحالي لم يعد صالحاً (تم إيقافه). يرجى استخدام كود جديد.', 
+           message: 'عفواً، المفتاح المستخدم لم يعد صالحاً. يرجى إدخال كود جديد.', 
            progress: 0 
          });
          
-         alert('⚠️ تنبيه هام:\nلقد تم إيقاف كود التفعيل المستخدم حالياً من المصدر (Google) لأسباب أمنية أو تجاوز الحصة.\n\nلا تقلق، لقد قمنا باسترجاع رصيدك لهذه المحاولة.\n\nيرجى إدخال كود تفعيل جديد في خانة الاشتراك للمتابعة.');
+         alert('⚠️ تنبيه هام: مشكلة في مفتاح التفعيل\n\nلقد تم رفض مفتاح API المستخدم حالياً من قبل Google (ربما انتهت صلاحيته أو تم حظره).\n\n✅ لا تقلق: تم استرجاع الرصيد المخصوم لهذه المحاولة.\n\n👇 الإجراء المطلوب:\nيرجى الانتقال لخانة الاشتراك بالأعلى وإدخال كود تفعيل جديد أو مفتاح API خاص بك.');
          
          const subSection = document.getElementById('subscription-section');
          if (subSection) subSection.scrollIntoView({ behavior: 'smooth' });
