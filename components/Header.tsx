@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { GraduationCap, Menu, X, Home, Info, Phone, Shield, Sparkles, LogIn, Globe } from 'lucide-react';
 
@@ -16,7 +15,7 @@ export const Header: React.FC<Props> = ({ currentPage, onNavigate, language = 'a
   // Handle scroll effect
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+      setIsScrolled(window.scrollY > 10);
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
@@ -32,10 +31,10 @@ export const Header: React.FC<Props> = ({ currentPage, onNavigate, language = 'a
   return (
     <>
       <header 
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out border-b
+        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-in-out border-b
           ${isScrolled 
-            ? 'bg-white/90 backdrop-blur-md shadow-lg border-gray-200 py-3' 
-            : 'bg-white border-transparent py-5'
+            ? 'bg-white/95 backdrop-blur-md shadow-lg border-gray-200 py-3' 
+            : 'bg-white border-transparent py-4 md:py-5'
           }
         `}
       >
@@ -44,7 +43,7 @@ export const Header: React.FC<Props> = ({ currentPage, onNavigate, language = 'a
           {/* Logo Section */}
           <div 
             onClick={() => onNavigate('home')}
-            className="flex items-center gap-3 cursor-pointer group"
+            className="flex items-center gap-3 cursor-pointer group select-none"
           >
             <div className={`
               relative flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-xl transition-all duration-300
@@ -122,8 +121,9 @@ export const Header: React.FC<Props> = ({ currentPage, onNavigate, language = 'a
 
           {/* Mobile Menu Toggle */}
           <button 
-            className="md:hidden p-2 text-gray-700 bg-gray-100 rounded-lg"
+            className="md:hidden p-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
             onClick={() => setIsMobileMenuOpen(true)}
+            aria-label="Open Menu"
           >
             <Menu size={24} />
           </button>
@@ -132,10 +132,13 @@ export const Header: React.FC<Props> = ({ currentPage, onNavigate, language = 'a
 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-[100] bg-white/95 backdrop-blur-xl animate-in slide-in-from-top-10 flex flex-col p-6">
+        <div className="fixed inset-0 z-[100] bg-white/95 backdrop-blur-xl animate-in slide-in-from-top-10 flex flex-col p-6 overflow-y-auto">
            <div className="flex justify-between items-center mb-8">
               <span className="font-bold text-xl text-blue-900">{language === 'ar' ? 'القائمة الرئيسية' : 'Menu'}</span>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-red-50 text-red-600 rounded-full">
+              <button 
+                onClick={() => setIsMobileMenuOpen(false)} 
+                className="p-2 bg-red-50 text-red-600 rounded-full hover:bg-red-100"
+              >
                 <X size={24} />
               </button>
            </div>
@@ -168,9 +171,9 @@ export const Header: React.FC<Props> = ({ currentPage, onNavigate, language = 'a
                         onToggleLanguage();
                         setIsMobileMenuOpen(false);
                     }}
-                    className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl"
+                    className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition"
                  >
-                    <Globe size={20} /> 
+                    <div className="p-2 bg-gray-200 rounded-lg"><Globe size={20} /></div>
                     <span>{language === 'ar' ? 'Switch to English' : 'تغيير للعربية'}</span>
                  </button>
               )}
@@ -180,9 +183,9 @@ export const Header: React.FC<Props> = ({ currentPage, onNavigate, language = 'a
                    onNavigate('privacy');
                    setIsMobileMenuOpen(false);
                 }}
-                className="flex items-center gap-3 p-2 text-gray-500"
+                className="flex items-center gap-3 p-4 text-gray-500 hover:text-blue-600 hover:bg-gray-50 rounded-xl transition"
               >
-                 <Shield size={18} /> {language === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}
+                 <Shield size={20} /> {language === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}
               </button>
            </nav>
         </div>

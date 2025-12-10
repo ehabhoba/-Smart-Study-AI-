@@ -1,6 +1,5 @@
-
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" class="scroll-smooth">
   <head>
     <!-- Google Tag Manager -->
     <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -11,7 +10,7 @@
     <!-- End Google Tag Manager -->
 
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
     
     <!-- Primary Meta Tags -->
     <title>المُلخص الدراسي الذكي | تلخيص PDF وشرح المناهج بالذكاء الاصطناعي مجاناً</title>
@@ -43,7 +42,7 @@
     <meta property="twitter:description" content="أداة الذكاء الاصطناعي الأولى للطلاب العرب. تلخيص، شرح، وحل أسئلة." />
     <meta property="twitter:image" content="https://tool-v1.5199.online/logo.png" />
 
-    <!-- 1. Software Application Schema -->
+    <!-- Schema Markup -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -64,88 +63,32 @@
       "audience": {
         "@type": "EducationalAudience",
         "educationalRole": "student"
-      },
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": "4.8",
-        "ratingCount": "1250"
       }
     }
     </script>
     
-    <!-- 2. FAQ Page Schema (Crucial for appearing in 'People also ask') -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      "mainEntity": [{
-        "@type": "Question",
-        "name": "كيف يمكنني تلخيص ملف PDF كبير مجاناً؟",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "يمكنك استخدام أداة الملخص الدراسي الذكي. قم برفع ملف الـ PDF، وسيقوم الذكاء الاصطناعي بقراءته وتلخيصه واستخراج أهم النقاط والأسئلة في ثوانٍ."
-        }
-      }, {
-        "@type": "Question",
-        "name": "هل تدعم الأداة المناهج المصرية والسعودية؟",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "نعم، الأداة مصممة للتعامل بكفاءة عالية مع اللغة العربية والمناهج الدراسية العربية بما في ذلك المعادلات الرياضية والمصطلحات العلمية."
-        }
-      }, {
-        "@type": "Question",
-        "name": "هل يمكن تحويل الصور إلى نص (OCR)؟",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "نعم، يمكنك رفع صور للمحاضرات أو الكتب، وستقوم الأداة باستخراج النص منها وتحليله وشرحه."
-        }
-      }]
-    }
-    </script>
-
-    <!-- 3. Site Navigation Schema (New for Structure) -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SiteNavigationElement",
-      "name": ["الرئيسية", "عن المنصة", "اتصل بنا", "سياسة الخصوصية"],
-      "url": [
-        "https://tool-v1.5199.online/",
-        "https://tool-v1.5199.online/#about",
-        "https://tool-v1.5199.online/#contact",
-        "https://tool-v1.5199.online/#privacy"
-      ]
-    }
-    </script>
-
-    <!-- Google Site Verification -->
-    <meta name="google-site-verification" content="google7926c68fae0d32f6" />
-
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
+            fontFamily: {
+              sans: ['Cairo', 'sans-serif'],
+            },
             animation: {
               'bounce-slight': 'bounce-slight 2s infinite',
-              'scan': 'scan 4s linear infinite',
-              'float': 'float 6s ease-in-out infinite',
-              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'blob': 'blob 7s infinite',
             },
             keyframes: {
               'bounce-slight': {
                 '0%, 100%': { transform: 'translateY(-5%)' },
                 '50%': { transform: 'translateY(0)' },
               },
-              scan: {
-                '0%': { top: '0%', opacity: '0' },
-                '10%': { opacity: '1' },
-                '90%': { opacity: '1' },
-                '100%': { top: '100%', opacity: '0' },
-              },
-              float: {
-                '0%, 100%': { transform: 'translateY(0)' },
-                '50%': { transform: 'translateY(-20px)' },
+              blob: {
+                "0%": { transform: "translate(0px, 0px) scale(1)" },
+                "33%": { transform: "translate(30px, -50px) scale(1.1)" },
+                "66%": { transform: "translate(-20px, 20px) scale(0.9)" },
+                "100%": { transform: "translate(0px, 0px) scale(1)" }
               }
             }
           }
@@ -163,261 +106,71 @@
     <style>
       body {
         font-family: 'Cairo', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
-      /* Custom scrollbar for better aesthetics */
+      
+      /* Smooth Custom Scrollbar */
       ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 10px;
+        height: 10px;
       }
       ::-webkit-scrollbar-track {
-        background: #f1f1f1;
+        background: #f1f5f9;
       }
       ::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
-        border-radius: 4px;
+        background: #cbd5e1;
+        border-radius: 5px;
+        border: 2px solid #f1f5f9;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #a8a8a8;
+        background: #94a3b8;
       }
       
       /* --- Base Markdown Styles --- */
       .markdown-body {
         line-height: 1.8;
-        color: #374151; /* gray-700 */
-        font-family: 'Arial', sans-serif; /* Changed to Arial for Results */
+        color: #334155; /* slate-700 */
+        font-family: 'Arial', 'Cairo', sans-serif; /* Fallback to Arial for better Latin reading mixed with Arabic */
       }
 
       .markdown-body h1, .markdown-body h2, .markdown-body h3 {
         margin-top: 1.5em;
         margin-bottom: 0.75em;
         line-height: 1.3;
-        font-family: 'Arial', sans-serif;
       }
 
-      .markdown-body h1 {
-        font-size: 2.25em;
-        font-weight: 800;
-        color: #1e3a8a; /* blue-900 */
-        border-bottom: 3px solid #e5e7eb;
-        padding-bottom: 0.3em;
-        margin-top: 0;
-      }
-
-      .markdown-body h2 {
-        font-size: 1.75em;
-        font-weight: 700;
-        color: #1d4ed8; /* blue-700 */
-      }
-
-      .markdown-body h3 {
-        font-size: 1.35em;
-        font-weight: 600;
-        color: #2563eb; /* blue-600 */
-      }
-
-      .markdown-body p {
-        margin-bottom: 1.2em;
-        font-size: 1.05em;
-      }
-
-      .markdown-body ul {
-        list-style-type: disc;
-        padding-right: 1.5em;
-        margin-bottom: 1em;
-      }
-
-      .markdown-body ol {
-        list-style-type: decimal;
-        padding-right: 1.5em;
-        margin-bottom: 1em;
-      }
-
-      .markdown-body li {
-        margin-bottom: 0.5em;
-        padding-right: 0.25em;
-      }
-
-      .markdown-body strong {
-        color: #111827; /* gray-900 */
-        font-weight: 800;
-      }
-
-      .markdown-body img {
-        max-width: 100%;
-        border-radius: 8px;
-        margin: 1.5em auto;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        display: block;
-      }
-
+      .markdown-body h1 { font-size: 2em; color: #1e3a8a; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.3em; }
+      .markdown-body h2 { font-size: 1.5em; color: #1d4ed8; font-weight: 700; }
+      .markdown-body h3 { font-size: 1.25em; color: #2563eb; font-weight: 600; }
+      .markdown-body p { margin-bottom: 1em; }
+      .markdown-body ul, .markdown-body ol { margin-bottom: 1em; padding-right: 1.5em; list-style-position: outside; }
+      .markdown-body ul { list-style-type: disc; }
+      .markdown-body ol { list-style-type: decimal; }
+      
       /* --- Responsive Table Styles --- */
       .markdown-body table {
-        display: block;
         width: 100%;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        border-collapse: separate;
-        border-spacing: 0;
-        margin: 2em 0;
-        border-radius: 8px;
-        border: 1px solid #e2e8f0;
-        overflow: hidden;
-      }
-      
-      .markdown-body thead {
-        background-color: #1e40af; /* blue-800 */
-        color: white;
-      }
-
-      .markdown-body th {
-        font-weight: 700;
-        padding: 1rem;
-        text-align: right;
-        border-bottom: 2px solid #1e3a8a;
-        white-space: nowrap;
-        color: white;
-      }
-
-      .markdown-body td {
-        padding: 0.75rem 1rem;
-        border-bottom: 1px solid #e2e8f0;
-        min-width: 140px;
-        color: #334155; /* slate-700 */
-        background-color: white;
-      }
-
-      .markdown-body tr:last-child td {
-        border-bottom: none;
-      }
-
-      .markdown-body tr:nth-child(even) td {
-        background-color: #f8fafc; /* slate-50 */
-      }
-
-      .markdown-body tr:hover td {
-        background-color: #f1f5f9; /* slate-100 */
-      }
-
-      /* --- Scoped Styles for OVERVIEW Tab --- */
-      .tab-overview h2 {
-        color: #0f172a; /* slate-900 */
-        border-right: 5px solid #64748b; /* slate-500 */
-        padding-right: 1rem;
-      }
-
-      /* --- Scoped Styles for SUMMARY Tab --- */
-      /* Professional Blue Theme for Summaries */
-      .tab-summary h2 {
-        background: #f0f9ff; /* sky-50 */
-        border-right: 5px solid #0284c7; /* sky-600 */
-        color: #0c4a6e; /* sky-900 */
-        padding: 0.75rem 1rem;
-        border-radius: 6px;
-        margin-top: 2.5rem;
-      }
-
-      .tab-summary h3 {
-        color: #0369a1; /* sky-700 */
-        margin-top: 1.5rem;
-        border-bottom: 1px dashed #e0f2fe; /* sky-100 */
-        padding-bottom: 0.25rem;
-        width: fit-content;
-      }
-
-      .tab-summary blockquote {
-        /* Info/Note Box Style - Warm Amber */
-        background-color: #fffbeb; /* amber-50 */
-        border-right: 5px solid #f59e0b; /* amber-500 */
-        color: #92400e; /* amber-800 */
-        padding: 1rem 1.5rem;
         margin: 1.5em 0;
-        border-radius: 6px;
-        border: 1px solid #fcd34d; /* amber-300 */
-        font-style: normal; /* Better readability */
+        border-collapse: collapse;
+        overflow-x: auto;
+        display: block; /* Make table scrollable on mobile */
       }
       
-      .tab-summary blockquote strong {
-        color: #b45309; /* amber-700 */
-      }
+      .markdown-body thead { background-color: #f1f5f9; }
+      .markdown-body th { padding: 0.75rem; border: 1px solid #cbd5e1; font-weight: 700; color: #0f172a; white-space: nowrap; }
+      .markdown-body td { padding: 0.75rem; border: 1px solid #cbd5e1; min-width: 120px; }
+      .markdown-body tr:nth-child(even) { background-color: #f8fafc; }
 
-      /* --- Scoped Styles for Q&A Tab --- */
-      /* Refined Professional Q&A Design */
-      .tab-qa h3 {
-        /* Question Block - Indigo Theme */
-        background-color: #eef2ff; /* indigo-50 */
-        border: 1px solid #c7d2fe; /* indigo-200 */
-        border-right: 6px solid #4f46e5; /* indigo-600 */
-        color: #312e81; /* indigo-900 */
-        padding: 1.5rem;
-        border-radius: 0.5rem;
-        margin-top: 2.5rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        font-size: 1.25em;
-        line-height: 1.6;
-        font-weight: 700;
-      }
-      
-      .tab-qa h3:first-child {
-        margin-top: 0;
-      }
-
-      .tab-qa blockquote {
-        /* Answer Block - Green Theme */
-        background-color: #f0fdf4; /* green-50 */
-        border: 1px solid #bbf7d0; /* green-200 */
-        border-right: 6px solid #16a34a; /* green-600 */
-        color: #14532d; /* green-900 */
-        padding: 1.5rem;
-        margin: 0 0 2rem 0;
-        border-radius: 0.5rem;
-        font-style: normal;
-        position: relative;
-        font-size: 1.1em;
-      }
-
-      .tab-qa blockquote strong {
-        color: #14532d; /* green-900 */
-        font-weight: 800;
-      }
-      
-      .tab-qa p {
-        margin-bottom: 0.5rem;
-      }
-
-      /* --- Scoped Styles for Deep Dive --- */
-      .prose-purple h3 {
-        color: #6b21a8;
-      }
-      .prose-purple strong {
-        color: #581c87;
-      }
-
-      /* --- Print Styles for PDF Export --- */
+      /* --- Print Optimization --- */
       @media print {
-        header, footer, .no-print {
-          display: none !important;
-        }
-        body {
-          background: white !important;
-          color: black !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          font-family: 'Arial', sans-serif !important;
-        }
-        .print-content {
-          display: block !important;
-          border: none !important;
-          box-shadow: none !important;
-          padding: 0 !important;
-          margin: 0 !important;
-          overflow: visible !important;
-          height: auto !important;
-        }
-        /* Ensure tables break correctly */
-        table, tr, td, th {
-          page-break-inside: avoid;
-        }
+        @page { margin: 2cm; }
+        body { background: white !important; color: black !important; -webkit-print-color-adjust: exact; }
+        header, footer, .no-print, #upload-section, #settings-section { display: none !important; }
+        .markdown-body { font-size: 12pt; }
+        .markdown-body a { text-decoration: none; color: black; }
+        .page-break-inside-avoid { page-break-inside: avoid; }
+        .break-before-page { page-break-before: always; }
       }
     </style>
   <script type="importmap">
@@ -426,6 +179,7 @@
     "react/": "https://aistudiocdn.com/react@^19.2.1/",
     "react": "https://aistudiocdn.com/react@^19.2.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.1",
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
     "pdfjs-dist": "https://aistudiocdn.com/pdfjs-dist@4.4.168",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
@@ -440,7 +194,7 @@
 }
 </script>
 </head>
-  <body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
+  <body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col selection:bg-blue-200 selection:text-blue-900">
     <!-- Google Tag Manager (noscript) -->
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NX8NCCGX"
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>

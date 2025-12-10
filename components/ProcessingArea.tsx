@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Loader2, FileText, Brain, CheckCircle, AlertCircle, Sparkles, Wand2, Rocket } from 'lucide-react';
+import { Loader2, FileText, Brain, CheckCircle, AlertCircle, Sparkles, Wand2 } from 'lucide-react';
 import { ProcessingStatus } from '../types';
 
 interface Props {
@@ -8,12 +7,12 @@ interface Props {
 }
 
 const TIPS = [
-  "💡 نصيحة احترافية: اضغط على أي مربع في الرسوم البيانية (Mermaid) لفتح شرح تفصيلي فوري.",
-  "💡 هل تعلم؟ يمكنك رفع ملفات PowerPoint وسيقوم الذكاء الاصطناعي بتحليل الشرائح والصور.",
-  "💡 ميزة خفية: استخدم زر 'قراءة (TTS)' للاستماع للملخص بصوت طبيعي أثناء المشي.",
-  "💡 تلميح: إذا كان الشرح معقداً، افتح نافذة 'Deep Dive' واختر المستوى 'مبسط'.",
-  "💡 هل تعلم؟ قسم 'الأسئلة' يتم توليده بناءً على أنماط الامتحانات الحقيقية.",
-  "💡 نصيحة: يمكنك تصدير الملخص إلى Word أو PDF للمذاكرة الورقية."
+  "💡 نصيحة: اضغط على مربعات الرسوم البيانية (Mermaid) لفتح الشرح الفوري.",
+  "💡 هل تعلم؟ يمكنك رفع ملفات PowerPoint وسنقوم بتحليل الشرائح والصور.",
+  "💡 استخدم زر 'قراءة (TTS)' للاستماع للملخص بصوت طبيعي أثناء المشي.",
+  "💡 إذا كان الشرح معقداً، افتح نافذة 'اشرح لي' واختر المستوى 'مبسط'.",
+  "💡 قسم 'الأسئلة' يتم توليده بناءً على أنماط الامتحانات الحقيقية.",
+  "💡 يمكنك تصدير الملخص إلى DOCX وطباعته للمذاكرة الورقية."
 ];
 
 export const ProcessingArea: React.FC<Props> = ({ status }) => {
@@ -25,7 +24,6 @@ export const ProcessingArea: React.FC<Props> = ({ status }) => {
 
   const [currentTip, setCurrentTip] = useState(0);
 
-  // Rotate tips
   useEffect(() => {
     if (status.step === 'analyzing') {
       const timer = setInterval(() => {
@@ -45,13 +43,12 @@ export const ProcessingArea: React.FC<Props> = ({ status }) => {
 
   return (
     <div className={`
-      relative overflow-hidden rounded-2xl border transition-all duration-500 mb-8 p-8 shadow-xl
+      relative overflow-hidden rounded-2xl border transition-all duration-500 mb-8 p-6 md:p-8 shadow-xl
       ${isError ? 'bg-red-50 border-red-200' : 
         isComplete ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-200' : 
         'bg-gradient-to-br from-indigo-50 via-white to-purple-50 border-indigo-100'}
     `}>
       
-      {/* Background Decorative Elements (Blobs) */}
       {!isError && !isComplete && (
         <>
           <div className="absolute top-0 right-0 w-64 h-64 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
@@ -77,10 +74,7 @@ export const ProcessingArea: React.FC<Props> = ({ status }) => {
            <p className="text-green-700 font-medium text-lg">النتائج جاهزة بالأسفل، استمتع بالمذاكرة الذكية.</p>
         </div>
       ) : (
-        /* Active Processing State */
         <div className="flex flex-col items-center w-full relative z-10">
-          
-          {/* Main Icon Animation */}
           <div className="mb-8 relative">
              <div className="absolute inset-0 bg-blue-400 rounded-full blur-xl opacity-20 animate-pulse"></div>
              <div className="bg-white p-6 rounded-2xl shadow-lg border border-blue-100 flex items-center justify-center relative">
@@ -95,13 +89,11 @@ export const ProcessingArea: React.FC<Props> = ({ status }) => {
              </div>
           </div>
 
-          {/* Steps Progress Visualizer */}
-          <div className="flex items-center justify-between w-full max-w-2xl mb-10 relative">
-             {/* Progress Track */}
-             <div className="absolute top-1/2 left-0 right-0 h-2 bg-gray-200 rounded-full -z-10 mx-4"></div>
+          <div className="flex items-center justify-between w-full max-w-2xl mb-10 relative px-4">
+             <div className="absolute top-1/2 left-4 right-4 h-2 bg-gray-200 rounded-full -z-10"></div>
              <div 
-               className="absolute top-1/2 left-0 h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full -z-10 transition-all duration-700 ease-out mx-4"
-               style={{ width: `calc(${(activeIndex / (steps.length - 1)) * 100}%)` }}
+               className="absolute top-1/2 left-4 h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full -z-10 transition-all duration-700 ease-out"
+               style={{ width: `calc(${(activeIndex / (steps.length - 1)) * 100}% - 2rem)` }}
              ></div>
 
              {steps.map((step, index) => {
@@ -109,7 +101,7 @@ export const ProcessingArea: React.FC<Props> = ({ status }) => {
                const isCompleted = index < activeIndex;
 
                return (
-                 <div key={step.id} className="flex flex-col items-center relative">
+                 <div key={step.id} className="flex flex-col items-center relative group">
                    <div className={`
                      w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 border-4 z-20
                      ${isCompleted ? 'bg-green-500 border-green-500 text-white shadow-green-200' : ''}
@@ -118,7 +110,7 @@ export const ProcessingArea: React.FC<Props> = ({ status }) => {
                    `}>
                      {isCompleted ? <CheckCircle size={18} /> : <step.icon size={18} />}
                    </div>
-                   <span className={`mt-3 text-sm font-bold transition-colors ${isActive ? 'text-blue-700' : 'text-gray-400'}`}>
+                   <span className={`mt-3 text-xs md:text-sm font-bold transition-colors ${isActive ? 'text-blue-700' : 'text-gray-400'}`}>
                      {step.label}
                    </span>
                  </div>
@@ -126,9 +118,8 @@ export const ProcessingArea: React.FC<Props> = ({ status }) => {
              })}
           </div>
 
-          {/* Status Text & Bar */}
           <div className="w-full max-w-xl text-center">
-            <h4 className="text-xl font-bold text-gray-800 mb-2 flex justify-center items-center gap-2">
+            <h4 className="text-lg md:text-xl font-bold text-gray-800 mb-2 flex justify-center items-center gap-2">
                <Loader2 className="animate-spin text-blue-600" /> 
                {status.message}
             </h4>
@@ -142,14 +133,13 @@ export const ProcessingArea: React.FC<Props> = ({ status }) => {
                 </div>
             </div>
 
-            {/* Smart Tips Card */}
             {status.step === 'analyzing' && (
-               <div className="bg-white/80 backdrop-blur-md border border-amber-200/60 rounded-xl p-5 shadow-sm transform transition-all hover:scale-[1.02] duration-300">
+               <div className="bg-white/80 backdrop-blur-md border border-amber-200/60 rounded-xl p-5 shadow-sm transform transition-all hover:scale-[1.02] duration-300 min-h-[100px] flex flex-col justify-center">
                   <div className="flex items-center justify-center gap-2 text-amber-600 font-bold mb-2 uppercase tracking-wide text-xs">
                     <Sparkles size={14} />
                     معلومة ذكية
                   </div>
-                  <p className="text-gray-700 font-medium text-lg min-h-[3rem] flex items-center justify-center animate-fade-in key={currentTip}">
+                  <p className="text-gray-700 font-medium text-base md:text-lg animate-fade-in key={currentTip}">
                     {TIPS[currentTip]}
                   </p>
                </div>

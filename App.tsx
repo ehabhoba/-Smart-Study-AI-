@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Header } from './components/Header';
 import { ApiKeyInput } from './components/ApiKeyInput';
@@ -42,7 +41,7 @@ const App: React.FC = () => {
     const handleVisibilityChange = () => {
         if (document.visibilityState === 'visible') {
             const updatedState = checkAndResetSubscription();
-            // Only update if something changed (like credits reset) to avoid re-renders
+            // Only update if something changed
             setSubscription(prev => {
                 if (updatedState.lastDailyReset !== prev.lastDailyReset || updatedState.remainingCredits !== prev.remainingCredits) {
                     return updatedState;
@@ -99,20 +98,17 @@ const App: React.FC = () => {
   };
 
   const saveToHistory = (result: StudyAnalysisResult) => {
-    // IMPORTANT: Create a lightweight version of the result for history
-    // LocalStorage has a 5MB limit. Storing extracted images (Base64) will crash it immediately.
     const historyItem: StudyAnalysisResult = {
         ...result,
         extractedImages: [] // Clear images for storage to save space
     };
 
-    const newHistory = [historyItem, ...history].slice(0, 10); // Keep last 10
+    const newHistory = [historyItem, ...history].slice(0, 10);
     setHistory(newHistory);
     try {
       localStorage.setItem('smart_study_history', JSON.stringify(newHistory));
     } catch (e) {
       console.error("Storage Quota Exceeded. Clearing old history.", e);
-      // Fallback: Clear history and try saving just the new one
       const resetHistory = [historyItem];
       setHistory(resetHistory);
       localStorage.setItem('smart_study_history', JSON.stringify(resetHistory));
@@ -125,7 +121,6 @@ const App: React.FC = () => {
     localStorage.setItem('smart_study_history', JSON.stringify(newHistory));
   };
 
-  // Import History Handler
   const handleImportHistory = (importedHistory: StudyAnalysisResult[]) => {
       setHistory(importedHistory);
       localStorage.setItem('smart_study_history', JSON.stringify(importedHistory));
@@ -135,7 +130,7 @@ const App: React.FC = () => {
   // Configuration State
   const [summaryType, setSummaryType] = useState<SummaryType>(SummaryType.FULL_ANALYSIS);
   const [maxSections, setMaxSections] = useState<number | undefined>(undefined);
-  const [targetLanguage, setTargetLanguage] = useState<string>('auto'); // 'auto', 'ar', 'en'
+  const [targetLanguage, setTargetLanguage] = useState<string>('auto');
 
   // Deep Dive State
   const [isDeepDiveOpen, setIsDeepDiveOpen] = useState(false);
@@ -144,7 +139,6 @@ const App: React.FC = () => {
   const [isDeepDiveLoading, setIsDeepDiveLoading] = useState(false);
   const [deepDiveComplexity, setDeepDiveComplexity] = useState<ComplexityLevel>(ComplexityLevel.INTERMEDIATE);
 
-  // Handlers
   const handleFileLoaded = useCallback(async (file: File) => {
     setFileName(file.name);
     setStatus({ step: 'extracting', message: language === 'ar' ? 'جاري قراءة الملف واستخراج الصور...' : 'Reading file and extracting images...', progress: 10 });
@@ -195,31 +189,28 @@ const App: React.FC = () => {
   const handleLoadHistory = (item: StudyAnalysisResult) => {
     setAnalysisResult(item);
     setFileName(item.fileName || 'ملخص محفوظ');
-    setSourceText(''); // We might not have source text saved to save space, but we have the result
+    setSourceText('');
     setExtractedFileImages(item.extractedImages || []);
     setStatus({ step: 'completed', message: 'تم استرجاع الملخص من الأرشيف', progress: 100 });
-    // Update language state based on history item
+    
     if (item.detectedLanguage) {
       setLanguage(item.detectedLanguage === 'ar' ? 'ar' : 'en');
     }
     window.scrollTo({ top: 300, behavior: 'smooth' });
-    setCurrentPage('home'); // Switch back to home view
+    setCurrentPage('home');
   };
 
   const handleStartProcessing = useCallback(async () => {
-    // 1. Check if user has credits
     if (subscription.remainingCredits <= 0) {
       if (subscription.currentTier === 0) {
         alert('لقد استهلكت الـ 5 محاولات اليومية المجانية. يرجى الانتظار 24 ساعة أو شحن رصيد مدفوع.');
       } else {
         alert('عفواً، رصيدك نفذ. يرجى شحن رصيد جديد للمتابعة.');
       }
-      // Scroll to subscription section
       document.getElementById('subscription-section')?.scrollIntoView({ behavior: 'smooth' });
       return;
     }
 
-    // 2. Validate input
     if (!sourceText && !sourceImage) {
       alert('يرجى رفع ملف أو صورة أولاً.');
       return;
@@ -234,17 +225,15 @@ const App: React.FC = () => {
     setAnalysisResult(null);
 
     try {
-      // 3. Call AI
       const result = await analyzeText(
         subscription.activeApiKey,
         { text: sourceText, image: sourceImage || undefined },
         summaryType,
         maxSections,
         extractedFileImages.length,
-        targetLanguage // Pass the target language
+        targetLanguage
       );
 
-      // 4. Update UI
       const finalResult = {
         ...result,
         id: crypto.randomUUID(),
@@ -257,13 +246,10 @@ const App: React.FC = () => {
       saveToHistory(finalResult);
       setStatus({ step: 'completed', message: 'تم التحليل بنجاح!', progress: 100 });
       
-      // Auto-switch UI language based on result language
       if (finalResult.detectedLanguage) {
           setLanguage(finalResult.detectedLanguage === 'ar' ? 'ar' : 'en');
       }
 
-      // 5. Deduct Credit
-      // Only deduct if not using a "Developer Key" (custom rule, optional)
       if (subscription.currentTier !== 999) {
           const newCredits = Math.max(0, subscription.remainingCredits - 1);
           const newState = { ...subscription, remainingCredits: newCredits };
@@ -306,19 +292,19 @@ const App: React.FC = () => {
       case 'home':
       default:
         return (
-          <div className="container mx-auto px-4 md:px-6 py-8 max-w-6xl">
+          <div className="container mx-auto px-4 md:px-6 py-8 max-w-7xl">
             {/* Subscription Status Section */}
-            <section id="subscription-section" className="mb-10">
+            <section id="subscription-section" className="mb-8">
               <ApiKeyInput subscription={subscription} updateSubscription={updateSubscription} />
             </section>
 
             {/* Main Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
               
               {/* Left Column: Controls (4/12) */}
               <div className="lg:col-span-4 space-y-6">
                  {/* Upload */}
-                 <section id="upload-section" className="h-64">
+                 <section id="upload-section">
                     <FileUpload 
                       onFileLoaded={handleFileLoaded} 
                       fileName={fileName} 
@@ -338,11 +324,11 @@ const App: React.FC = () => {
                        <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">لغة الملخص:</label>
                           <div className="relative">
-                            <Languages className="absolute right-3 top-3 text-gray-400" size={16} />
+                            <Languages className="absolute left-3 top-3 text-gray-400" size={16} />
                             <select 
                               value={targetLanguage}
                               onChange={(e) => setTargetLanguage(e.target.value)}
-                              className="w-full p-2 pr-10 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                              className="w-full p-2 pl-10 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
                             >
                                <option value="auto">🌐 نفس لغة الكتاب (تلقائي)</option>
                                <option value="ar">🇸🇦 العربية (ترجمة)</option>
@@ -378,7 +364,7 @@ const App: React.FC = () => {
                                 onChange={(e) => setMaxSections(parseInt(e.target.value))}
                                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                               />
-                              <span className="text-sm font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded">{maxSections || 5}</span>
+                              <span className="text-sm font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded min-w-[30px] text-center">{maxSections || 5}</span>
                           </div>
                        </div>
                     </div>
