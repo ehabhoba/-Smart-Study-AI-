@@ -354,8 +354,10 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Detect direction from API result or default to RTL (Arabic) if not specified
+  // We check if the detected language is one of the known LTR languages
   const detectedLang = result.detectedLanguage?.toLowerCase() || 'ar';
-  const isRtl = detectedLang === 'ar' || detectedLang.startsWith('ar');
+  const isLtr = ['en', 'fr', 'es', 'de', 'it', 'pt', 'ru'].some(l => detectedLang.startsWith(l));
+  const isRtl = !isLtr; // Default to RTL for Arabic and others
   const direction = isRtl ? 'rtl' : 'ltr';
 
   // Parsed sections state
@@ -540,10 +542,13 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
 
   return (
     <div className="animate-fade-in-up" dir={direction}>
-       {detectedLang !== 'ar' && (
-           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 mb-4 rounded-lg text-sm flex items-center gap-2">
+       {detectedLang && (
+           <div className={`
+             px-4 py-2 mb-4 rounded-lg text-sm flex items-center gap-2
+             ${detectedLang === 'ar' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-blue-50 text-blue-800 border border-blue-200'}
+           `}>
                <Info size={16} />
-               Detected Language: {detectedLang.toUpperCase()}. The content is displayed in {detectedLang === 'ar' ? 'Arabic' : 'the source language'}.
+               {detectedLang === 'ar' ? 'تم اكتشاف المحتوى باللغة العربية' : `Detected Language: ${detectedLang.toUpperCase()}`}
            </div>
        )}
 
