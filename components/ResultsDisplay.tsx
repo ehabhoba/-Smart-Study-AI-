@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { StudyAnalysisResult } from '../types';
-import { FileText, List, HelpCircle, Volume2, Search, Copy, Check, Download, Loader2, Square, Info, Image as ImageIcon, ZoomIn, AlertTriangle, Printer, Camera, FileQuestion, FileDown, Gauge, Maximize2, Layers, BrainCircuit, RefreshCw, Trophy } from 'lucide-react';
+import { FileText, List, HelpCircle, Volume2, Search, Copy, Check, Download, Loader2, Square, Info, Image as ImageIcon, ZoomIn, AlertTriangle, Printer, Camera, FileQuestion, FileDown, Gauge, Maximize2, Layers, BrainCircuit, RefreshCw, Trophy, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, Eye } from 'lucide-react';
 import { generateSpeech } from '../services/geminiService';
 import { playAudioFromBase64, stopAudio } from '../services/audioService';
 import { marked } from 'marked';
@@ -264,6 +264,68 @@ const InteractiveQuiz = ({ quiz }: { quiz: any[] }) => {
     );
 };
 
+// --- COLLAPSIBLE SECTION COMPONENT ---
+const CollapsibleSection = ({ title, isOpen, onToggle, children }: { title: string, isOpen: boolean, onToggle: () => void, children: React.ReactNode }) => {
+    return (
+        <div className="border border-gray-200 rounded-xl mb-4 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+            <button 
+                onClick={onToggle}
+                className={`w-full flex items-center justify-between p-4 text-right transition-colors ${isOpen ? 'bg-blue-50 text-blue-900' : 'bg-white text-gray-800 hover:bg-gray-50'}`}
+            >
+                <div className="flex items-center gap-3">
+                    <span className={`p-1 rounded-full ${isOpen ? 'bg-blue-200' : 'bg-gray-100'}`}>
+                        {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </span>
+                    <h3 className="font-bold text-lg md:text-xl">{title}</h3>
+                </div>
+            </button>
+            
+            {isOpen && (
+                <div className="p-6 bg-white animate-in slide-in-from-top-2 border-t border-gray-100">
+                    {children}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// --- LAZY RENDER LIST COMPONENT ---
+// Simulates virtual scrolling by rendering items as user scrolls
+const LazyRenderList = ({ items, renderItem }: { items: any[], renderItem: (item: any, index: number) => React.ReactNode }) => {
+    const [visibleCount, setVisibleCount] = useState(3);
+    const observerTarget = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    setVisibleCount(prev => Math.min(prev + 3, items.length));
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current);
+        }
+
+        return () => observer.disconnect();
+    }, [items.length]);
+
+    return (
+        <div className="space-y-2">
+            {items.slice(0, visibleCount).map((item, index) => renderItem(item, index))}
+            {visibleCount < items.length && (
+                <div ref={observerTarget} className="h-20 flex items-center justify-center p-4">
+                    <Loader2 className="animate-spin text-blue-500" />
+                    <span className="text-gray-500 text-sm mr-2">جاري تحميل المزيد...</span>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
 interface Props {
   result: StudyAnalysisResult;
   apiKey: string;
@@ -272,17 +334,9 @@ interface Props {
 
 type AudioState = 'idle' | 'generating' | 'playing';
 
-const VOICES = [
-  { id: 'Zephyr', label: 'Zephyr (أنثى)', gender: 'Female' },
-  { id: 'Puck', label: 'Puck (ذكر)', gender: 'Male' },
-  { id: 'Kore', label: 'Kore (أنثى)', gender: 'Female' },
-  { id: 'Fenrir', label: 'Fenrir (ذكر)', gender: 'Male' },
-];
-
 export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'summary' | 'flashcards' | 'quiz' | 'qa' | 'figures'>('summary');
   const [audioState, setAudioState] = useState<AudioState>('idle');
-  const [copied, setCopied] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState('Zephyr');
   const [readingSpeed, setReadingSpeed] = useState(1.0);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -290,6 +344,44 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
   const [highlightedText, setHighlightedText] = useState<string | null>(null);
   const stopPlaybackRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // Parsed sections state
+  const [summarySections, setSummarySections] = useState<{title: string, content: string, isOpen: boolean}[]>([]);
+  const [qaSections, setQaSections] = useState<{title: string, content: string, isOpen: boolean}[]>([]);
+
+  // Parse markdown into sections on load
+  useEffect(() => {
+    if (result.summary) {
+        // Split by H2 (##)
+        const parts = result.summary.split(/(?=^## )/gm);
+        const sections = parts.map(part => {
+            const titleMatch = part.match(/^## (.*)$/m);
+            const title = titleMatch ? titleMatch[1].replace(/\*\*/g, '').trim() : 'مقدمة / ملخص عام';
+            const content = part.replace(/^## .*$/m, '').trim(); // Remove the header from content body
+            return { title, content, isOpen: false };
+        }).filter(s => s.content.trim().length > 0);
+        
+        // Always open the first section
+        if (sections.length > 0) sections[0].isOpen = true;
+        setSummarySections(sections);
+    }
+    
+    if (result.qa) {
+        // Split by H3 (###) for questions
+        const parts = result.qa.split(/(?=^### )/gm);
+        const sections = parts.map(part => {
+             const titleMatch = part.match(/^### (.*)$/m);
+             const title = titleMatch ? titleMatch[1].replace(/\*\*/g, '').trim() : 'سؤال';
+             const content = part.replace(/^### .*$/m, '').trim();
+             return { title, content, isOpen: false };
+        }).filter(s => s.content.trim().length > 0);
+         // Always open the first few questions
+         if (sections.length > 0) {
+             sections.slice(0, 3).forEach(s => s.isOpen = true);
+         }
+        setQaSections(sections);
+    }
+  }, [result]);
 
   useEffect(() => {
     if (highlightedText && contentRef.current) {
@@ -311,7 +403,8 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
   const handleReadAloud = async () => {
     if (audioState !== 'idle') { handleStopReading(); return; }
     
-    // Only read Summary or Overview
+    // Determine text to read based on active tab
+    // For collapsed sections, we read the full raw text (result.summary)
     const textToRead = activeTab === 'summary' ? result.summary : result.overview;
     if (!textToRead) { alert("يرجى الانتقال لتبويب الملخص للقراءة."); return; }
 
@@ -319,15 +412,19 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
     setAudioState('generating');
 
     try {
+      // Simple sentence splitting
       const sentences = textToRead.match(/[^.!?\n]+([.!?\n]+|$)/g) || [textToRead];
       for (const sentence of sentences) {
         if (stopPlaybackRef.current) break;
-        if (!sentence.trim()) continue;
-        setHighlightedText(sentence);
+        if (!sentence.trim() || sentence.trim().length < 3) continue;
+        
+        setHighlightedText(sentence.trim());
         setAudioState('generating');
         const cleanSentence = sentence.replace(/[*_#`~-]/g, '');
         const audioData = await generateSpeech(apiKey, cleanSentence, selectedVoice);
+        
         if (stopPlaybackRef.current) break;
+        
         setAudioState('playing');
         await playAudioFromBase64(audioData, 24000, readingSpeed);
       }
@@ -341,7 +438,9 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
   };
 
   const getRenderContent = (content: string) => {
-    if (highlightedText && content) return content.replace(highlightedText, `~~${highlightedText}~~`);
+    if (highlightedText && content.includes(highlightedText)) {
+         return content.replace(highlightedText, `~~${highlightedText}~~`);
+    }
     return content;
   };
 
@@ -366,7 +465,10 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
                     if (index >= 0 && index < result.extractedImages.length) imageSrc = result.extractedImages[index];
                 }
                 return <img src={imageSrc} alt={alt} className="max-w-full h-auto rounded-lg shadow-md mx-auto my-4" />;
-            }
+            },
+            // Override headings in parsed mode since we use them as accordion titles
+            h2({node, children}: any) { return <h3 className="text-xl font-bold text-blue-800 mt-4 mb-2">{children}</h3>; },
+            h3({node, children}: any) { return <h4 className="text-lg font-bold text-blue-700 mt-3 mb-1">{children}</h4>; }
         }}
     >
         {content}
@@ -376,6 +478,26 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
   const handleExportPdf = () => {
     setIsPrinting(true);
     setTimeout(() => { window.print(); setIsPrinting(false); }, 2000);
+  };
+
+  const handleToggleSection = (index: number, type: 'summary' | 'qa') => {
+      if (type === 'summary') {
+          const newSections = [...summarySections];
+          newSections[index].isOpen = !newSections[index].isOpen;
+          setSummarySections(newSections);
+      } else {
+          const newSections = [...qaSections];
+          newSections[index].isOpen = !newSections[index].isOpen;
+          setQaSections(newSections);
+      }
+  };
+
+  const handleBulkToggle = (expand: boolean, type: 'summary' | 'qa') => {
+       if (type === 'summary') {
+          setSummarySections(summarySections.map(s => ({ ...s, isOpen: expand })));
+      } else {
+          setQaSections(qaSections.map(s => ({ ...s, isOpen: expand })));
+      }
   };
 
   // --- PRINT MODE ---
@@ -433,14 +555,82 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
        </div>
 
        {/* Content Area */}
-       <div ref={contentRef} className="bg-white p-6 md:p-10 rounded-b-xl border border-gray-200 shadow-sm min-h-[500px]">
-          {activeTab === 'summary' && <div className="markdown-body font-[Arial]"><MarkdownRenderer content={getRenderContent(result.summary)} /></div>}
+       <div ref={contentRef} className="bg-white p-4 md:p-8 rounded-b-xl border border-gray-200 shadow-sm min-h-[500px]">
+          
+          {/* SUMMARY TAB: Collapsible Sections */}
+          {activeTab === 'summary' && (
+              <div className="font-[Arial]">
+                  {summarySections.length > 0 ? (
+                      <>
+                        <div className="flex justify-end gap-2 mb-4 text-xs">
+                             <button onClick={() => handleBulkToggle(true, 'summary')} className="flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded">
+                                 <ChevronsDown size={14}/> توسيع الكل
+                             </button>
+                             <button onClick={() => handleBulkToggle(false, 'summary')} className="flex items-center gap-1 text-gray-600 hover:bg-gray-50 px-2 py-1 rounded">
+                                 <ChevronsUp size={14}/> طي الكل
+                             </button>
+                        </div>
+                        <LazyRenderList 
+                            items={summarySections}
+                            renderItem={(section: any, index: number) => (
+                                <CollapsibleSection 
+                                    key={index} 
+                                    title={section.title} 
+                                    isOpen={section.isOpen} 
+                                    onToggle={() => handleToggleSection(index, 'summary')}
+                                >
+                                    <div className="markdown-body">
+                                        <MarkdownRenderer content={getRenderContent(section.content)} />
+                                    </div>
+                                </CollapsibleSection>
+                            )}
+                        />
+                      </>
+                  ) : (
+                      // Fallback for non-parsed summary
+                      <div className="markdown-body"><MarkdownRenderer content={getRenderContent(result.summary)} /></div>
+                  )}
+              </div>
+          )}
           
           {activeTab === 'flashcards' && <FlashcardDeck flashcards={result.flashcards || []} />}
           
           {activeTab === 'quiz' && <InteractiveQuiz quiz={result.quiz || []} />}
           
-          {activeTab === 'qa' && <div className="markdown-body font-[Arial]"><MarkdownRenderer content={result.qa} /></div>}
+          {/* Q&A TAB: Collapsible Sections */}
+          {activeTab === 'qa' && (
+              <div className="font-[Arial]">
+                  {qaSections.length > 0 ? (
+                      <>
+                        <div className="flex justify-end gap-2 mb-4 text-xs">
+                             <button onClick={() => handleBulkToggle(true, 'qa')} className="flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded">
+                                 <ChevronsDown size={14}/> توسيع الكل
+                             </button>
+                             <button onClick={() => handleBulkToggle(false, 'qa')} className="flex items-center gap-1 text-gray-600 hover:bg-gray-50 px-2 py-1 rounded">
+                                 <ChevronsUp size={14}/> طي الكل
+                             </button>
+                        </div>
+                        <LazyRenderList 
+                            items={qaSections}
+                            renderItem={(section: any, index: number) => (
+                                <CollapsibleSection 
+                                    key={index} 
+                                    title={section.title} 
+                                    isOpen={section.isOpen} 
+                                    onToggle={() => handleToggleSection(index, 'qa')}
+                                >
+                                    <div className="markdown-body">
+                                        <MarkdownRenderer content={section.content} />
+                                    </div>
+                                </CollapsibleSection>
+                            )}
+                        />
+                      </>
+                  ) : (
+                      <div className="markdown-body"><MarkdownRenderer content={result.qa} /></div>
+                  )}
+              </div>
+          )}
           
           {activeTab === 'figures' && (
              <div className="grid grid-cols-2 gap-4">

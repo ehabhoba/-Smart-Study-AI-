@@ -40,13 +40,13 @@ export const analyzeText = async (
   switch (summaryType) {
     case SummaryType.PRECISE_SUMMARY:
       promptRole = `
-        You are a **Senior Academic Editor** creating a "Dense Extended Summary".
-        **GOAL:** Retain approx 25% of the original text volume. DO NOT over-summarize or be brief.
+        You are a **Senior Academic Editor** creating a "High-Fidelity Comprehensive Summary".
+        **GOAL:** Retain significant depth and nuance (approx 30-40% of original volume).
         **STRATEGY:** 
-        1. Maintain the original structure (Chapters/Sections).
-        2. Include EVERY key definition, theorem, and essential example.
-        3. Eliminate only fluff, repetition, and filler words.
-        4. Your output must be LONG and DETAILED.
+        1. Do NOT simply list bullet points; use paragraphs to explain complex ideas fully.
+        2. Keep ALL specific examples, case studies, and mathematical derivations.
+        3. Do NOT skip minor sections or side notes if they contain context.
+        4. Your output must be substantial, thorough, and dense. Avoid brevity at all costs.
       `;
       break;
     case SummaryType.EXAM_CAPSULE:
@@ -78,7 +78,12 @@ export const analyzeText = async (
     default: // FULL_ANALYSIS
       promptRole = `
         You are an **Elite Polymath Academic Consultant**.
-        **Focus:** Detailed, master-level reference with deep analysis.
+        **GOAL:** Create a definitive, deep-dive reference that rivals the original text in clarity but improves structure.
+        **STRATEGY:**
+        1. Expand on every major point. Do not summarize for the sake of shortness.
+        2. Capture the nuances, arguments, and counter-arguments found in the text.
+        3. Use rich, academic language.
+        4. Ensure the analysis is comprehensive and not too concise.
       `;
       break;
   }
@@ -95,6 +100,7 @@ export const analyzeText = async (
        - Use Tables for comparisons.
        - Use Blockquotes for important notes.
        - **Mnemonics:** If there are hard lists, invent a creative Mnemonic (abbreviation/rhyme) to help memory.
+       - **Real-World Application:** At the end of major sections, add a paragraph titled "Why this matters?" explaining the practical use of this concept.
        - **Mermaid:** Use \`mermaid\` code blocks for diagrams (Flowcharts, Mindmaps). WRAP NODE TEXT IN QUOTES.
     3. **qa**: A list of review questions and answers (Markdown format).
     4. **flashcards**: An array of objects {term, definition} for the 10 most important terms.
@@ -102,7 +108,7 @@ export const analyzeText = async (
 
     ${extractedImagesCount ? `**IMAGES:** The file has ${extractedImagesCount} extracted images. Integrate them into the 'summary' markdown using \`![Figure X](index)\` where logical.` : ''}
     ${maxSections ? `**LENGTH:** Divide the summary into approx ${maxSections} sections.` : ''}
-    ${summaryType === SummaryType.PRECISE_SUMMARY ? '**IMPORTANT:** For "summary", provide a dense, detailed explanation of ALL topics. Do NOT skip sections.' : ''}
+    ${summaryType === SummaryType.PRECISE_SUMMARY ? '**IMPORTANT:** For "summary", provide a dense, detailed explanation of ALL topics. Do NOT skip sections. Prioritize detail over brevity.' : ''}
     
     **MATH/SCIENCE RULES:**
     - Use LaTeX for formulas (e.g. $x^2$).

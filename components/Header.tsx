@@ -1,13 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
-import { GraduationCap, Menu, X, Home, Info, Phone, Shield, Sparkles, LogIn } from 'lucide-react';
+import { GraduationCap, Menu, X, Home, Info, Phone, Shield, Sparkles, LogIn, Globe } from 'lucide-react';
 
 interface Props {
   currentPage: string;
   onNavigate: (page: string) => void;
+  language?: 'ar' | 'en';
+  onToggleLanguage?: () => void;
 }
 
-export const Header: React.FC<Props> = ({ currentPage, onNavigate }) => {
+export const Header: React.FC<Props> = ({ currentPage, onNavigate, language = 'ar', onToggleLanguage }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -21,10 +23,10 @@ export const Header: React.FC<Props> = ({ currentPage, onNavigate }) => {
   }, []);
 
   const navLinks = [
-    { id: 'home', label: 'الرئيسية', icon: Home },
-    { id: 'about', label: 'عن المنصة', icon: Info },
-    { id: 'pricing', label: 'الأسعار والباقات', icon: Sparkles }, // Will scroll to pricing or show page
-    { id: 'contact', label: 'اتصل بنا', icon: Phone },
+    { id: 'home', label: language === 'ar' ? 'الرئيسية' : 'Home', icon: Home },
+    { id: 'about', label: language === 'ar' ? 'عن المنصة' : 'About', icon: Info },
+    { id: 'pricing', label: language === 'ar' ? 'الأسعار والباقات' : 'Pricing', icon: Sparkles }, 
+    { id: 'contact', label: language === 'ar' ? 'اتصل بنا' : 'Contact', icon: Phone },
   ];
 
   return (
@@ -56,7 +58,8 @@ export const Header: React.FC<Props> = ({ currentPage, onNavigate }) => {
             
             <div className="flex flex-col">
               <h1 className={`font-bold text-xl md:text-2xl tracking-tight transition-colors ${isScrolled ? 'text-gray-900' : 'text-blue-900'}`}>
-                المُلخص <span className="text-blue-600">الذكي</span>
+                {language === 'ar' ? 'المُلخص ' : 'Smart '}
+                <span className="text-blue-600">{language === 'ar' ? 'الذكي' : 'Study'}</span>
               </h1>
               <span className="text-[10px] text-gray-500 font-medium tracking-wide hidden md:block">Smart Study AI Platform</span>
             </div>
@@ -87,10 +90,21 @@ export const Header: React.FC<Props> = ({ currentPage, onNavigate }) => {
 
           {/* Action Buttons */}
           <div className="hidden md:flex items-center gap-3">
+             {/* Language Switcher */}
+             {onToggleLanguage && (
+                 <button 
+                    onClick={onToggleLanguage}
+                    className="flex items-center gap-1 text-gray-600 hover:text-blue-600 px-3 py-2 rounded-full hover:bg-gray-50 transition text-sm font-bold"
+                 >
+                    <Globe size={18} />
+                    <span>{language === 'ar' ? 'English' : 'العربية'}</span>
+                 </button>
+             )}
+
              <button 
                 onClick={() => onNavigate('privacy')}
                 className="text-gray-500 hover:text-blue-600 transition p-2 rounded-full hover:bg-gray-100"
-                title="سياسة الخصوصية"
+                title={language === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}
              >
                 <Shield size={20} />
              </button>
@@ -102,7 +116,7 @@ export const Header: React.FC<Props> = ({ currentPage, onNavigate }) => {
                 className="bg-gray-900 hover:bg-black text-white px-6 py-2.5 rounded-xl font-bold transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2"
              >
                 <LogIn size={18} />
-                <span>ابدأ الآن</span>
+                <span>{language === 'ar' ? 'ابدأ الآن' : 'Start Now'}</span>
              </button>
           </div>
 
@@ -120,7 +134,7 @@ export const Header: React.FC<Props> = ({ currentPage, onNavigate }) => {
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-[100] bg-white/95 backdrop-blur-xl animate-in slide-in-from-top-10 flex flex-col p-6">
            <div className="flex justify-between items-center mb-8">
-              <span className="font-bold text-xl text-blue-900">القائمة الرئيسية</span>
+              <span className="font-bold text-xl text-blue-900">{language === 'ar' ? 'القائمة الرئيسية' : 'Menu'}</span>
               <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-red-50 text-red-600 rounded-full">
                 <X size={24} />
               </button>
@@ -148,6 +162,19 @@ export const Header: React.FC<Props> = ({ currentPage, onNavigate }) => {
               
               <div className="h-px bg-gray-100 my-2"></div>
 
+              {onToggleLanguage && (
+                 <button 
+                    onClick={() => {
+                        onToggleLanguage();
+                        setIsMobileMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl"
+                 >
+                    <Globe size={20} /> 
+                    <span>{language === 'ar' ? 'Switch to English' : 'تغيير للعربية'}</span>
+                 </button>
+              )}
+
               <button 
                 onClick={() => {
                    onNavigate('privacy');
@@ -155,7 +182,7 @@ export const Header: React.FC<Props> = ({ currentPage, onNavigate }) => {
                 }}
                 className="flex items-center gap-3 p-2 text-gray-500"
               >
-                 <Shield size={18} /> سياسة الخصوصية
+                 <Shield size={18} /> {language === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}
               </button>
            </nav>
         </div>

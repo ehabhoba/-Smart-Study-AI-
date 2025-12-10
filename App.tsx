@@ -17,12 +17,22 @@ import { extractTextFromPDF } from './services/pdfService';
 import { extractTextFromPPTX } from './services/pptxService';
 import { analyzeText, explainConcept } from './services/geminiService';
 import { StudyAnalysisResult, SummaryType, ProcessingStatus, DeepDiveResponse, ComplexityLevel } from './types';
-import { BookOpen, Github, Globe, Lock } from 'lucide-react';
+import { BookOpen, Github, Globe, Lock, PenTool, Search, ScanLine, Sparkles, Cpu, Scan } from 'lucide-react';
 import { SubscriptionState, DAILY_FREE_LIMIT, TRIAL_KEY } from './config/subscriptionConfig';
 
 const App: React.FC = () => {
-  // Navigation State
+  // Navigation & Language State
   const [currentPage, setCurrentPage] = useState('home');
+  const [language, setLanguage] = useState<'ar' | 'en'>('ar');
+
+  useEffect(() => {
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = language;
+  }, [language]);
+
+  const toggleLanguage = () => {
+    setLanguage(prev => prev === 'ar' ? 'en' : 'ar');
+  };
 
   // Subscription State Initialization with Daily Reset Check
   const [subscription, setSubscription] = useState<SubscriptionState>(() => {
@@ -132,6 +142,13 @@ const App: React.FC = () => {
     localStorage.setItem('smart_study_history', JSON.stringify(newHistory));
   };
 
+  // Import History Handler
+  const handleImportHistory = (importedHistory: StudyAnalysisResult[]) => {
+      setHistory(importedHistory);
+      localStorage.setItem('smart_study_history', JSON.stringify(importedHistory));
+      alert('تم استعادة الأرشيف بنجاح! 🎉');
+  };
+
   // Configuration State
   const [summaryType, setSummaryType] = useState<SummaryType>(SummaryType.FULL_ANALYSIS);
   const [maxSections, setMaxSections] = useState<number | undefined>(undefined);
@@ -146,7 +163,7 @@ const App: React.FC = () => {
   // Handlers
   const handleFileLoaded = useCallback(async (file: File) => {
     setFileName(file.name);
-    setStatus({ step: 'extracting', message: 'جاري قراءة الملف واستخراج الصور...', progress: 10 });
+    setStatus({ step: 'extracting', message: language === 'ar' ? 'جاري قراءة الملف واستخراج الصور...' : 'Reading file and extracting images...', progress: 10 });
     setSourceText('');
     setSourceImage(null);
     setExtractedFileImages([]);
@@ -159,18 +176,18 @@ const App: React.FC = () => {
           const result = e.target?.result as string;
           const base64Data = result.split(',')[1];
           setSourceImage({ data: base64Data, mimeType: file.type });
-          setStatus({ step: 'idle', message: 'تم تحميل الصورة بنجاح', progress: 30 });
+          setStatus({ step: 'idle', message: language === 'ar' ? 'تم تحميل الصورة بنجاح' : 'Image loaded successfully', progress: 30 });
         };
         reader.readAsDataURL(file);
       } else if (file.name.endsWith('.pptx') || file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
         const { text, images } = await extractTextFromPPTX(file);
         setSourceText(text);
         setExtractedFileImages(images);
-        setStatus({ step: 'idle', message: `تم استخراج النص و ${images.length} صورة بنجاح`, progress: 30 });
+        setStatus({ step: 'idle', message: language === 'ar' ? `تم استخراج النص و ${images.length} صورة بنجاح` : `Extracted text and ${images.length} images`, progress: 30 });
       } else if (file.type === 'application/pdf') {
         const text = await extractTextFromPDF(file);
         setSourceText(text);
-        setStatus({ step: 'idle', message: 'تم استخراج النص بنجاح', progress: 30 });
+        setStatus({ step: 'idle', message: language === 'ar' ? 'تم استخراج النص بنجاح' : 'Text extracted successfully', progress: 30 });
       } else {
         throw new Error('نوع الملف غير مدعوم. يرجى استخدام PDF أو PowerPoint أو صور.');
       }
@@ -178,10 +195,10 @@ const App: React.FC = () => {
       console.error(error);
       setStatus({ step: 'error', message: error.message || 'فشل في قراءة الملف.', progress: 0 });
     }
-  }, []);
+  }, [language]);
 
   const handleClearFile = useCallback(() => {
-    if (window.confirm('هل أنت متأكد من حذف الملف الحالي والنتائج؟')) {
+    if (window.confirm(language === 'ar' ? 'هل أنت متأكد من حذف الملف الحالي والنتائج؟' : 'Are you sure you want to clear the current file?')) {
       setFileName('');
       setSourceText('');
       setSourceImage(null);
@@ -189,7 +206,7 @@ const App: React.FC = () => {
       setStatus({ step: 'idle', message: '', progress: 0 });
       setAnalysisResult(null);
     }
-  }, []);
+  }, [language]);
 
   const handleLoadHistory = (item: StudyAnalysisResult) => {
     setAnalysisResult(item);
@@ -346,85 +363,125 @@ const App: React.FC = () => {
         return (
           <main className="container mx-auto px-4 py-8 max-w-5xl flex-grow">
             {/* Subscription / Access Control Section */}
-            <section className="mb-8 animate-fade-in-up" id="subscription-section">
+            <section className="mb-12 animate-fade-in-up" id="subscription-section">
               <ApiKeyInput subscription={subscription} updateSubscription={updateSubscription} />
             </section>
 
-            {/* Upload & Config Grid */}
-            <div className={`grid md:grid-cols-2 gap-6 mb-8 transition-opacity duration-300 ${subscription.remainingCredits <= 0 ? 'opacity-50 pointer-events-none filter blur-[1px]' : ''}`}>
-              <div id="upload-section" className="h-full">
-                <FileUpload 
-                  onFileLoaded={handleFileLoaded} 
-                  fileName={fileName}
-                  disabled={status.step === 'analyzing' || status.step === 'extracting'}
-                  onClear={handleClearFile}
-                />
-              </div>
-              
-              <div id="settings-section" className="bg-white rounded-xl shadow-md p-6 border border-gray-100 flex flex-col justify-between h-full relative">
-                 {/* Lock Overlay if no credits */}
-                 {subscription.remainingCredits <= 0 && (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-50/50">
-                        <Lock className="text-gray-400 w-16 h-16" />
+            {/* Dazzling Holographic Work Area */}
+            <section className="relative mb-16 py-4 group isolate">
+                
+                {/* 1. Magical Background Glows */}
+                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 rounded-[30px] blur-3xl -z-10 transform scale-105 opacity-50 transition-all duration-1000 group-hover:opacity-100 group-hover:scale-110"></div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.1),transparent_60%)] -z-10 animate-pulse-slow"></div>
+
+                {/* 2. Floating 3D Elements (Decorations) */}
+                <div className="absolute -top-10 -left-10 z-20 animate-float hidden xl:block drop-shadow-2xl">
+                    <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-[0_10px_40px_rgba(37,99,235,0.2)] border border-white/60">
+                        <PenTool size={40} className="text-blue-600" />
                     </div>
-                 )}
-
-                <div>
-                  <h2 className="text-xl font-bold mb-4 text-blue-800 flex items-center gap-2">
-                    <BookOpen className="w-5 h-5" />
-                    2. إعدادات المدرس الذكي
-                  </h2>
-                  
-                  <div className="mb-4">
-                    <label className="block text-gray-700 font-medium mb-2">ماذا تريد من الذكاء الاصطناعي؟</label>
-                    <select 
-                      value={summaryType}
-                      onChange={(e) => setSummaryType(e.target.value as SummaryType)}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all text-gray-800 font-medium"
-                      disabled={status.step === 'analyzing'}
-                    >
-                      <option value={SummaryType.FULL_ANALYSIS}>🧠 تحليل شامل ومفصل (افتراضي)</option>
-                      <option value={SummaryType.PRECISE_SUMMARY}>🔍 تلخيص دقيق (شامل - 25% من المحتوى)</option>
-                      <option value={SummaryType.EXAM_CAPSULE}>💊 كبسولة الامتحان (ملخص المراجعة النهائية)</option>
-                      <option value={SummaryType.MALZAMA}>📚 تحويل إلى ملزمة (Study Guide)</option>
-                      <option value={SummaryType.WORKSHEET}>📝 ورقة عمل وتدريبات (Worksheet)</option>
-                      <option value={SummaryType.QA_ONLY}>❓ استخراج أسئلة وأجوبة فقط</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-2">
-                        {summaryType === SummaryType.PRECISE_SUMMARY && "يحافظ على 25% من المحتوى الأصلي بدقة، مثالي للكتب الكبيرة والمراجع."}
-                        {summaryType === SummaryType.FULL_ANALYSIS && "تحليل متوازن يجمع بين الشرح والتلخيص."}
-                        {summaryType === SummaryType.EXAM_CAPSULE && "سيركز على أهم التعريفات، القوانين، وما يتكرر في الامتحانات."}
-                        {summaryType === SummaryType.MALZAMA && "يعيد صياغة المحتوى بأسلوب شرح الدروس مع أمثلة توضيحية."}
-                        {summaryType === SummaryType.WORKSHEET && "يصمم تدريبات للطالب للتفاعل مع المحتوى."}
-                        {summaryType === SummaryType.QA_ONLY && "ينتج بنك أسئلة ضخم للمراجعة."}
-                    </p>
-                  </div>
-
-                  <div className="mb-4">
-                    <label className="block text-gray-700 font-medium mb-2">الحد الأقصى للأقسام (اختياري):</label>
-                    <input 
-                      type="number" 
-                      value={maxSections || ''}
-                      onChange={(e) => setMaxSections(e.target.value ? parseInt(e.target.value) : undefined)}
-                      placeholder="اتركه فارغاً للتحليل التلقائي" 
-                      min="1" 
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all"
-                      disabled={status.step === 'analyzing'}
-                    />
-                  </div>
+                </div>
+                <div className="absolute -bottom-10 -right-10 z-20 animate-float animation-delay-2000 hidden xl:block drop-shadow-2xl">
+                     <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-[0_10px_40px_rgba(147,51,234,0.2)] border border-white/60">
+                        <Search size={40} className="text-purple-600" />
+                    </div>
+                </div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-0 opacity-5 pointer-events-none scale-150">
+                     <ScanLine size={400} className="text-blue-900 animate-spin-slow" />
                 </div>
 
-                <button 
-                  onClick={handleStartProcessing}
-                  disabled={(!sourceText && !sourceImage) || subscription.remainingCredits <= 0 || status.step === 'analyzing' || status.step === 'extracting'}
-                  className={`w-full font-bold py-4 rounded-lg shadow transition transform active:scale-95 flex justify-center items-center gap-2
-                    ${((!sourceText && !sourceImage) || subscription.remainingCredits <= 0) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}
-                  `}
-                >
-                   <span>✨ ابدأ التحليل (يخصم 1 رصيد)</span>
-                </button>
-              </div>
-            </div>
+                {/* 3. The Functional Grid */}
+                <div className={`relative z-10 grid md:grid-cols-2 gap-8 transition-all duration-300 ${subscription.remainingCredits <= 0 ? 'opacity-50 pointer-events-none filter blur-[1px]' : ''}`}>
+                  
+                  {/* Left Side: Upload with Scanner Effect */}
+                  <div id="upload-section" className="relative h-full group/card perspective-1000">
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-600 rounded-2xl blur opacity-25 group-hover/card:opacity-60 transition duration-500 animate-pulse-slow"></div>
+                    <div className="relative h-full bg-white/80 backdrop-blur-xl rounded-2xl p-1 shadow-2xl ring-1 ring-white/50 overflow-hidden">
+                        {/* Scanner Beam */}
+                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_20px_rgba(34,211,238,0.8)] z-20 animate-scan pointer-events-none opacity-0 group-hover/card:opacity-100"></div>
+                        
+                        <div className="relative h-full bg-white/50 rounded-xl">
+                           <FileUpload 
+                              onFileLoaded={handleFileLoaded} 
+                              fileName={fileName}
+                              disabled={status.step === 'analyzing' || status.step === 'extracting'}
+                              onClear={handleClearFile}
+                            />
+                        </div>
+                    </div>
+                  </div>
+                  
+                  {/* Right Side: Settings with Tech Glow */}
+                  <div id="settings-section" className="relative h-full group/card">
+                     <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-400 to-purple-600 rounded-2xl blur opacity-25 group-hover/card:opacity-60 transition duration-500 animate-pulse-slow"></div>
+                     <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 flex flex-col justify-between h-full p-6 ring-1 ring-white/60">
+                         {/* Lock Overlay if no credits */}
+                         {subscription.remainingCredits <= 0 && (
+                            <div className="absolute inset-0 z-30 flex items-center justify-center bg-gray-50/50 backdrop-blur-sm rounded-2xl">
+                                <Lock className="text-gray-400 w-16 h-16" />
+                            </div>
+                         )}
+
+                        <div className="relative z-10">
+                          <h2 className="text-xl font-bold mb-4 text-blue-800 flex items-center gap-2">
+                            <div className="p-2 bg-blue-100 rounded-lg text-blue-600"><Cpu size={20} /></div>
+                            {language === 'ar' ? '2. إعدادات المدرس الذكي' : '2. Analysis Settings'}
+                          </h2>
+                          
+                          <div className="mb-4">
+                            <label className="block text-gray-700 font-medium mb-2 flex items-center gap-2">
+                              {language === 'ar' ? 'ماذا تريد من الذكاء الاصطناعي؟' : 'What kind of summary do you need?'}
+                            </label>
+                            <select 
+                              value={summaryType}
+                              onChange={(e) => setSummaryType(e.target.value as SummaryType)}
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all text-gray-800 font-medium hover:border-blue-400"
+                              disabled={status.step === 'analyzing'}
+                            >
+                              <option value={SummaryType.FULL_ANALYSIS}>🧠 {language === 'ar' ? 'تحليل شامل ومفصل (افتراضي)' : 'Detailed Analysis (Default)'}</option>
+                              <option value={SummaryType.PRECISE_SUMMARY}>🔍 {language === 'ar' ? 'تلخيص دقيق (شامل - 25% من المحتوى)' : 'Precise Summary (25% volume)'}</option>
+                              <option value={SummaryType.EXAM_CAPSULE}>💊 {language === 'ar' ? 'كبسولة الامتحان (ملخص المراجعة النهائية)' : 'Exam Capsule (Review)'}</option>
+                              <option value={SummaryType.MALZAMA}>📚 {language === 'ar' ? 'تحويل إلى ملزمة (Study Guide)' : 'Study Guide (Malzama)'}</option>
+                              <option value={SummaryType.WORKSHEET}>📝 {language === 'ar' ? 'ورقة عمل وتدريبات (Worksheet)' : 'Student Worksheet'}</option>
+                              <option value={SummaryType.QA_ONLY}>❓ {language === 'ar' ? 'استخراج أسئلة وأجوبة فقط' : 'Q&A Bank Only'}</option>
+                            </select>
+                            <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                                {summaryType === SummaryType.PRECISE_SUMMARY && (language === 'ar' ? "يحافظ على 25% من المحتوى الأصلي بدقة، مثالي للكتب الكبيرة والمراجع." : "Keeps 25% of content fidelity, great for textbooks.")}
+                                {summaryType === SummaryType.FULL_ANALYSIS && (language === 'ar' ? "تحليل متوازن يجمع بين الشرح والتلخيص." : "Balanced analysis with summary and explanation.")}
+                                {summaryType === SummaryType.EXAM_CAPSULE && (language === 'ar' ? "سيركز على أهم التعريفات، القوانين، وما يتكرر في الامتحانات." : "Focuses on high-yield definitions and exam questions.")}
+                            </p>
+                          </div>
+
+                          <div className="mb-4">
+                            <label className="block text-gray-700 font-medium mb-2">
+                                {language === 'ar' ? 'الحد الأقصى للأقسام (اختياري):' : 'Max Sections (Optional):'}
+                            </label>
+                            <input 
+                              type="number" 
+                              value={maxSections || ''}
+                              onChange={(e) => setMaxSections(e.target.value ? parseInt(e.target.value) : undefined)}
+                              placeholder={language === 'ar' ? "اتركه فارغاً للتحليل التلقائي" : "Leave empty for auto"}
+                              min="1" 
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all hover:border-blue-400"
+                              disabled={status.step === 'analyzing'}
+                            />
+                          </div>
+                        </div>
+
+                        <button 
+                          onClick={handleStartProcessing}
+                          disabled={(!sourceText && !sourceImage) || subscription.remainingCredits <= 0 || status.step === 'analyzing' || status.step === 'extracting'}
+                          className={`w-full font-bold py-4 rounded-xl shadow-lg transition-all transform active:scale-95 flex justify-center items-center gap-2 relative overflow-hidden group/btn
+                            ${((!sourceText && !sourceImage) || subscription.remainingCredits <= 0) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white'}
+                          `}
+                        >
+                           <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300"></div>
+                           <Sparkles size={20} className={status.step === 'analyzing' ? 'animate-spin' : 'animate-pulse'} />
+                           <span className="relative z-10">{language === 'ar' ? 'ابدأ التحليل (يخصم 1 رصيد)' : 'Start Analysis (1 Credit)'}</span>
+                        </button>
+                     </div>
+                  </div>
+                </div>
+            </section>
 
             {/* Status Area */}
             {status.step !== 'idle' && (
@@ -441,9 +498,12 @@ const App: React.FC = () => {
             )}
 
             {/* History Area */}
-            {history.length > 0 && (
-              <HistoryList history={history} onLoad={handleLoadHistory} onDelete={deleteFromHistory} />
-            )}
+            <HistoryList 
+                history={history} 
+                onLoad={handleLoadHistory} 
+                onDelete={deleteFromHistory} 
+                onImport={handleImportHistory} // New Prop
+            />
 
             {/* SEO Content Section */}
             <SeoContent />
@@ -453,8 +513,13 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
-      <Header currentPage={currentPage} onNavigate={handleNavigate} />
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans transition-all" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+      <Header 
+        currentPage={currentPage} 
+        onNavigate={handleNavigate} 
+        language={language} 
+        onToggleLanguage={toggleLanguage} 
+      />
 
       {/* Onboarding Tour Modal */}
       {showTour && currentPage === 'home' && <OnboardingTour onClose={closeTour} />}

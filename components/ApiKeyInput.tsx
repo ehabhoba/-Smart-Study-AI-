@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Key, Lock, Unlock, Zap, MessageCircle, Star, CheckCircle, XCircle, Clock, Terminal } from 'lucide-react';
+import { Key, Lock, Unlock, Zap, MessageCircle, Star, CheckCircle, XCircle, Clock, Terminal, AlertTriangle } from 'lucide-react';
 import { REDEMPTION_CODES, TRIAL_KEY, getRandomKey, SubscriptionState, DAILY_FREE_LIMIT } from '../config/subscriptionConfig';
 
 interface Props {
@@ -104,9 +104,11 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
   };
 
   const isFreeTier = subscription.currentTier === 0;
+  // Determine if we need to force an update: User has credits but NO active key (Revoked)
+  const needsKeyUpdate = subscription.remainingCredits > 0 && !subscription.activeApiKey;
 
-  // 1. Case: Active Subscription (Free or Paid) with Credits
-  if (subscription.remainingCredits > 0) {
+  // 1. Case: Active Subscription (Free or Paid) with Credits AND Valid Key
+  if (subscription.remainingCredits > 0 && subscription.activeApiKey) {
     return (
       <div className="bg-white rounded-xl shadow-md p-6 border border-green-200 animate-in fade-in slide-in-from-top-2">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -154,7 +156,7 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
     );
   }
 
-  // 2. Case: No Credits
+  // 2. Case: No Credits OR Needs Key Update (Revoked Key)
   return (
     <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 relative overflow-hidden">
       <div className="absolute top-0 left-0 w-2 h-full bg-red-500"></div>
@@ -165,7 +167,19 @@ export const ApiKeyInput: React.FC<Props> = ({ subscription, updateSubscription 
           تفعيل الخدمة
         </h3>
         
-        {isFreeTier ? (
+        {needsKeyUpdate ? (
+           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex flex-col items-start gap-2">
+              <div className="flex items-center gap-2 text-yellow-800 font-bold">
+                 <AlertTriangle size={20} className="text-yellow-600" />
+                 تنبيه: يجب تحديث مفتاح التفعيل
+              </div>
+              <p className="text-sm text-yellow-700 leading-relaxed">
+                 تم إيقاف المفتاح السابق (لأسباب أمنية أو فنية). رصيدك الحالي (<strong>{subscription.remainingCredits} مشروع</strong>) محفوظ وآمن.
+                 <br/>
+                 يرجى إدخال كود جديد أو مفتاح API للمتابعة.
+              </p>
+           </div>
+        ) : isFreeTier ? (
           <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
               <p className="font-bold text-orange-900">انتهت المحاولات المجانية لليوم ({DAILY_FREE_LIMIT}/5)</p>
