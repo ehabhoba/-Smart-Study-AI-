@@ -3,12 +3,13 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { StudyAnalysisResult } from '../types';
-import { FileText, List, HelpCircle, Volume2, Search, Copy, Check, Download, Loader2, Square, Info, Image as ImageIcon, ZoomIn, AlertTriangle, Printer, Camera, FileQuestion, FileDown, Gauge, Maximize2, Layers, BrainCircuit, RefreshCw, Trophy, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, Eye } from 'lucide-react';
+import { FileText, List, HelpCircle, Volume2, Search, Copy, Check, Download, Loader2, Square, Info, Image as ImageIcon, ZoomIn, AlertTriangle, Printer, Camera, FileQuestion, FileDown, Gauge, Maximize2, Layers, BrainCircuit, RefreshCw, Trophy, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, Eye, FileType } from 'lucide-react';
 import { generateSpeech } from '../services/geminiService';
 import { playAudioFromBase64, stopAudio } from '../services/audioService';
 import { marked } from 'marked';
 import mermaid from 'mermaid';
 import html2canvas from 'html2canvas';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, BorderStyle, WidthType, AlignmentType, VerticalAlign, ImageRun } from 'docx';
 
 // Initialize mermaid
 mermaid.initialize({
@@ -333,6 +334,56 @@ const LazyRenderList = ({ items, renderItem }: { items: any[], renderItem: (item
     );
 };
 
+// --- HELPER: Convert SVG String to PNG Uint8Array ---
+const svgToPngData = (svgString: string): Promise<{ data: Uint8Array, width: number, height: number }> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const scale = 2; // High DPI
+      const width = img.width;
+      const height = img.height;
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject('No canvas context'); return; }
+      
+      // White background for PNG
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      ctx.scale(scale, scale);
+      ctx.drawImage(img, 0, 0);
+      
+      canvas.toBlob((blob) => {
+        if (!blob) { reject('Canvas to Blob failed'); return; }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+             const base64data = reader.result as string;
+             const data = base64data.split(',')[1];
+             const binaryString = window.atob(data);
+             const len = binaryString.length;
+             const bytes = new Uint8Array(len);
+             for (let i = 0; i < len; i++) {
+                 bytes[i] = binaryString.charCodeAt(i);
+             }
+             resolve({ data: bytes, width: width, height: height });
+             URL.revokeObjectURL(url);
+        };
+        reader.readAsDataURL(blob);
+      }, 'image/png');
+    };
+    img.onerror = (e) => {
+        reject(e);
+        URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  });
+};
+
 
 interface Props {
   result: StudyAnalysisResult;
@@ -345,20 +396,20 @@ type AudioState = 'idle' | 'generating' | 'playing';
 export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'summary' | 'flashcards' | 'quiz' | 'qa' | 'figures'>('summary');
   const [audioState, setAudioState] = useState<AudioState>('idle');
-  const [selectedVoice, setSelectedVoice] = useState('Zephyr');
   const [readingSpeed, setReadingSpeed] = useState(1.0);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isExportingDocx, setIsExportingDocx] = useState(false);
   
   const [highlightedText, setHighlightedText] = useState<string | null>(null);
   const stopPlaybackRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Detect direction from API result or default to RTL (Arabic) if not specified
-  // We check if the detected language is one of the known LTR languages
   const detectedLang = result.detectedLanguage?.toLowerCase() || 'ar';
   const isLtr = ['en', 'fr', 'es', 'de', 'it', 'pt', 'ru'].some(l => detectedLang.startsWith(l));
   const isRtl = !isLtr; // Default to RTL for Arabic and others
   const direction = isRtl ? 'rtl' : 'ltr';
+  const voiceName = isRtl ? 'Zephyr' : 'Puck'; // Choose voice based on language
 
   // Parsed sections state
   const [summarySections, setSummarySections] = useState<{title: string, content: string, isOpen: boolean}[]>([]);
@@ -418,8 +469,6 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
   const handleReadAloud = async () => {
     if (audioState !== 'idle') { handleStopReading(); return; }
     
-    // Determine text to read based on active tab
-    // For collapsed sections, we read the full raw text (result.summary)
     const textToRead = activeTab === 'summary' ? result.summary : result.overview;
     if (!textToRead) { alert("يرجى الانتقال لتبويب الملخص للقراءة."); return; }
 
@@ -436,7 +485,7 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
         setHighlightedText(sentence.trim());
         setAudioState('generating');
         const cleanSentence = sentence.replace(/[*_#`~-]/g, '');
-        const audioData = await generateSpeech(apiKey, cleanSentence, selectedVoice);
+        const audioData = await generateSpeech(apiKey, cleanSentence, voiceName);
         
         if (stopPlaybackRef.current) break;
         
@@ -481,7 +530,6 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
                 }
                 return <img src={imageSrc} alt={alt} className="max-w-full h-auto rounded-lg shadow-md mx-auto my-4" />;
             },
-            // Override headings in parsed mode since we use them as accordion titles
             h2({node, children}: any) { return <h3 className="text-xl font-bold text-blue-800 mt-4 mb-2">{children}</h3>; },
             h3({node, children}: any) { return <h4 className="text-lg font-bold text-blue-700 mt-3 mb-1">{children}</h4>; }
         }}
@@ -493,6 +541,319 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
   const handleExportPdf = () => {
     setIsPrinting(true);
     setTimeout(() => { window.print(); setIsPrinting(false); }, 2000);
+  };
+
+  // --- DOCX GENERATION LOGIC ---
+  const parseMarkdownToDocxChildren = async (text: string): Promise<(Paragraph | Table)[]> => {
+    const lines = text.split('\n');
+    const children: (Paragraph | Table)[] = [];
+    let tableBuffer: string[] = [];
+    let mermaidBuffer: string[] = [];
+    let inMermaidBlock = false;
+    
+    // Helper to process buffered table
+    const processTableBuffer = () => {
+        if (tableBuffer.length === 0) return;
+        
+        const rows: TableRow[] = [];
+        // Filter out separator lines like |---|---|
+        const contentRows = tableBuffer.filter(l => !l.match(/^[|\s]*[-:]+[|\s]*[-:]*[|\s]*$/));
+        
+        contentRows.forEach((line, rowIndex) => {
+             // Split by pipe and ignore empty first/last elements if pipe exists
+             const cellsText = line.split('|').filter((c, i, arr) => {
+                 if (i === 0 && c.trim() === '') return false;
+                 if (i === arr.length - 1 && c.trim() === '') return false;
+                 return true;
+             });
+             
+             const cells = cellsText.map(cellText => {
+                 return new TableCell({
+                     children: [new Paragraph({
+                         text: cellText.trim().replace(/\*\*/g, ''), // Strip bold for simplicity inside cell
+                         alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
+                         bidirectional: isRtl
+                     })],
+                     verticalAlign: VerticalAlign.CENTER,
+                     shading: rowIndex === 0 ? { fill: "1E40AF", color: "auto" } : undefined, // Blue header
+                 });
+             });
+             rows.push(new TableRow({ children: cells }));
+        });
+
+        if (rows.length > 0) {
+            children.push(
+                new Table({
+                    rows: rows,
+                    width: { size: 100, type: WidthType.PERCENTAGE },
+                    borders: {
+                        top: { style: BorderStyle.SINGLE, size: 1, color: "dddddd" },
+                        bottom: { style: BorderStyle.SINGLE, size: 1, color: "dddddd" },
+                        left: { style: BorderStyle.SINGLE, size: 1, color: "dddddd" },
+                        right: { style: BorderStyle.SINGLE, size: 1, color: "dddddd" },
+                        insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "dddddd" },
+                        insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "dddddd" },
+                    }
+                })
+            );
+            // Add spacing after table
+            children.push(new Paragraph({ text: "" }));
+        }
+        tableBuffer = [];
+    };
+
+    // Helper to process mermaid buffer
+    const processMermaidBuffer = async () => {
+        if (mermaidBuffer.length === 0) return;
+        const code = mermaidBuffer.join('\n');
+        
+        try {
+            const id = `mermaid-export-${Math.random().toString(36).substr(2, 9)}`;
+            // headless render of mermaid code
+            const { svg } = await mermaid.render(id, code);
+            
+            const { data, width, height } = await svgToPngData(svg);
+            
+            // Calculate dimensions to fit page (approx width in pixels)
+            const maxWidth = 500;
+            const finalWidth = width > maxWidth ? maxWidth : width;
+            const finalHeight = (finalWidth / width) * height;
+
+            children.push(new Paragraph({
+                children: [
+                    new ImageRun({
+                        data: data,
+                        transformation: {
+                            width: finalWidth,
+                            height: finalHeight
+                        }
+                    })
+                ],
+                alignment: AlignmentType.CENTER,
+                spacing: { before: 200, after: 200 }
+            }));
+            
+            children.push(new Paragraph({
+                text: isRtl ? "شكل توضيحي (Mermaid Diagram)" : "Figure (Mermaid Diagram)",
+                alignment: AlignmentType.CENTER,
+                style: "Caption"
+            }));
+        } catch (e) {
+            console.error("Mermaid export failed", e);
+            children.push(new Paragraph({ 
+                text: "[Diagram could not be rendered for export]", 
+                color: "red",
+                alignment: AlignmentType.CENTER
+            }));
+        }
+        mermaidBuffer = [];
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        
+        // --- Detect Mermaid Blocks ---
+        if (trimmed.startsWith('```mermaid')) {
+            processTableBuffer(); // Flush any pending table
+            inMermaidBlock = true;
+            continue; 
+        }
+        if (trimmed.startsWith('```') && inMermaidBlock) {
+            await processMermaidBuffer();
+            inMermaidBlock = false;
+            continue;
+        }
+        if (inMermaidBlock) {
+            mermaidBuffer.push(line);
+            continue;
+        }
+
+        // --- Detect Table Rows ---
+        if (trimmed.startsWith('|')) {
+            tableBuffer.push(trimmed);
+            continue;
+        } else {
+            processTableBuffer(); // Flush table if line breaks
+        }
+        
+        if (!trimmed) {
+             children.push(new Paragraph("")); // Empty line
+             return;
+        }
+
+        // --- Headings ---
+        if (trimmed.startsWith('## ')) {
+             children.push(new Paragraph({
+                 text: trimmed.replace(/^##\s+/, '').replace(/\*\*/g, ''),
+                 heading: HeadingLevel.HEADING_2,
+                 alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
+                 bidirectional: isRtl,
+                 spacing: { before: 300, after: 150 }
+             }));
+             return;
+        }
+        if (trimmed.startsWith('### ')) {
+             children.push(new Paragraph({
+                 text: trimmed.replace(/^###\s+/, '').replace(/\*\*/g, ''),
+                 heading: HeadingLevel.HEADING_3,
+                 alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
+                 bidirectional: isRtl,
+                 spacing: { before: 200, after: 100 }
+             }));
+             return;
+        }
+
+        // --- List Items ---
+        let indent = 0;
+        let cleanText = trimmed;
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+            cleanText = trimmed.substring(2);
+            indent = 1; // Basic bullet logic
+        }
+
+        // --- Basic Text & Bold Parsing ---
+        const parts = cleanText.split(/(\*\*.*?\*\*)/g);
+        const textRuns = parts.map(part => {
+             if (part.startsWith('**') && part.endsWith('**')) {
+                 return new TextRun({ text: part.slice(2, -2), bold: true, rightToLeft: isRtl });
+             }
+             return new TextRun({ text: part, rightToLeft: isRtl });
+        });
+
+        children.push(new Paragraph({
+             children: textRuns,
+             bullet: indent > 0 ? { level: 0 } : undefined,
+             alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
+             bidirectional: isRtl,
+             spacing: { after: 100 }
+        }));
+    }
+    
+    processTableBuffer(); // Final flush
+    return children;
+  };
+
+  const handleExportDocx = async () => {
+    setIsExportingDocx(true);
+    try {
+        const sections = [];
+        
+        // 1. Title
+        sections.push(new Paragraph({
+            text: result.fileName || 'ملخص دراسي',
+            heading: HeadingLevel.TITLE,
+            alignment: AlignmentType.CENTER,
+            bidirectional: isRtl,
+            spacing: { after: 400 }
+        }));
+
+        // 2. Summary
+        sections.push(new Paragraph({
+            text: isRtl ? "الملخص الشامل" : "Comprehensive Summary",
+            heading: HeadingLevel.HEADING_1,
+            alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
+            bidirectional: isRtl,
+            spacing: { before: 400, after: 200 }
+        }));
+        
+        const summaryChildren = await parseMarkdownToDocxChildren(result.summary);
+        sections.push(...summaryChildren);
+
+        // 3. Q&A
+        if (result.qa) {
+            sections.push(new Paragraph({
+                 children: [new TextRun({ text: "", break: 1 })] 
+            }));
+            sections.push(new Paragraph({
+                text: isRtl ? "بنك الأسئلة" : "Q&A Bank",
+                heading: HeadingLevel.HEADING_1,
+                pageBreakBefore: true,
+                alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
+                bidirectional: isRtl,
+                spacing: { before: 400, after: 200 }
+            }));
+            const qaChildren = await parseMarkdownToDocxChildren(result.qa);
+            sections.push(...qaChildren);
+        }
+
+        const doc = new Document({
+            sections: [{
+                properties: {},
+                children: sections
+            }]
+        });
+
+        const blob = await Packer.toBlob(doc);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `SmartStudy_${(result.fileName || 'summary').replace(/\s+/g, '_')}.docx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        console.error("DOCX Export Failed", e);
+        alert("Failed to export DOCX file. Please check console for details.");
+    } finally {
+        setIsExportingDocx(false);
+    }
+  };
+
+  const handleExportWord = async () => {
+    try {
+        const header = `
+            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    body { font-family: 'Arial', sans-serif; direction: ${direction}; }
+                    h1 { color: #1e3a8a; font-size: 24pt; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+                    h2 { color: #1d4ed8; font-size: 18pt; margin-top: 20px; }
+                    h3 { color: #2563eb; font-size: 14pt; }
+                    p { margin-bottom: 10px; line-height: 1.5; }
+                    table { border-collapse: collapse; width: 100%; margin: 20px 0; border: 1px solid #ddd; }
+                    th { background-color: #1e40af; color: white; padding: 10px; border: 1px solid #ddd; }
+                    td { padding: 8px; border: 1px solid #ddd; }
+                    blockquote { background-color: #fffbeb; border-${isRtl ? 'right' : 'left'}: 5px solid #f59e0b; padding: 10px; margin: 10px 0; }
+                </style>
+            </head>
+            <body>
+        `;
+        
+        // Convert Markdown to HTML for the doc
+        const summaryHtml = await marked.parse(result.summary);
+        const qaHtml = await marked.parse(result.qa);
+        
+        const body = `
+            <h1>${result.fileName || 'Study Summary'}</h1>
+            <br/>
+            ${summaryHtml}
+            <br/><br/><hr/><br/>
+            <h2>${isRtl ? 'بنك الأسئلة' : 'Q&A Bank'}</h2>
+            ${qaHtml}
+            </body></html>
+        `;
+        
+        const content = header + body;
+        
+        const blob = new Blob(['\ufeff', content], {
+            type: 'application/msword'
+        });
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `SmartStudy_${result.fileName || 'summary'}.doc`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        console.error("Export failed", e);
+        alert("Failed to export Word document.");
+    }
   };
 
   const handleToggleSection = (index: number, type: 'summary' | 'qa') => {
@@ -564,6 +925,14 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
        <div className="bg-gray-50 p-2 border border-gray-200 flex flex-wrap gap-2 justify-between items-center no-print">
          <div className="flex gap-2">
             <button onClick={() => navigator.clipboard.writeText(result.summary)} className="btn-icon bg-white" title={isRtl ? "نسخ" : "Copy"}><Copy size={16} /></button>
+            <button onClick={handleExportDocx} className="btn-icon bg-white text-blue-700 font-bold px-3 w-auto flex gap-1" title={isRtl ? "تصدير DOCX (حديث)" : "Export DOCX"}>
+                {isExportingDocx ? <Loader2 size={16} className="animate-spin" /> : <FileType size={16} />}
+                <span className="text-xs">DOCX</span>
+            </button>
+            <button onClick={handleExportWord} className="btn-icon bg-white text-blue-600 px-3 w-auto flex gap-1" title={isRtl ? "تصدير Word (قديم)" : "Export Word Legacy"}>
+                <FileDown size={16} />
+                <span className="text-xs">DOC</span>
+            </button>
             <button onClick={handleExportPdf} className="btn-icon bg-white text-red-600" title={isRtl ? "طباعة PDF" : "Print PDF"}><Printer size={16} /></button>
          </div>
          

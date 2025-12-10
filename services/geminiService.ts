@@ -30,7 +30,8 @@ export const analyzeText = async (
   content: { text?: string, image?: { data: string, mimeType: string } },
   summaryType: SummaryType,
   maxSections?: number,
-  extractedImagesCount?: number
+  extractedImagesCount?: number,
+  targetLanguage: string = 'auto' // 'auto', 'ar', 'en', 'fr', etc.
 ): Promise<StudyAnalysisResult> => {
   const ai = new GoogleGenAI({ apiKey });
 
@@ -88,26 +89,46 @@ export const analyzeText = async (
       break;
   }
 
+  // Determine Language Instruction
+  let languageInstruction = "";
+  if (targetLanguage && targetLanguage !== 'auto') {
+      languageInstruction = `
+      **CRITICAL: LANGUAGE ENFORCEMENT**
+      The user has explicitly requested the output to be in: **${targetLanguage.toUpperCase()}**.
+      - You MUST TRANSLATE the content if the source is different.
+      - Ensure the translation is academic, fluent, and uses correct terminology for that language.
+      - 'detectedLanguage' field in JSON should be '${targetLanguage}'.
+      `;
+  } else {
+      languageInstruction = `
+      **CRITICAL: LANGUAGE DETECTION**
+      1. **DETECT LANGUAGE:** Read the input text/images and detect the dominant language.
+      2. **MATCH OUPUT:** The entire JSON response **MUST BE IN THE SAME LANGUAGE AS THE INPUT**.
+         - If input is Arabic -> Output Arabic.
+         - If input is English -> Output English.
+      3. Set 'detectedLanguage' to the detected ISO code (e.g., 'ar', 'en').
+      `;
+  }
+
   const systemPrompt = `
     ${promptRole}
     
-    **CRITICAL INSTRUCTION: LANGUAGE DETECTION**
-    1. Read the input text/images.
-    2. DETECT the dominant language (e.g., Arabic, English, French, etc.).
-    3. **GENERATE ALL OUTPUT IN THAT EXACT DETECTED LANGUAGE.** 
-       - If the book is English, the summary MUST be English.
-       - If the book is Arabic, the summary MUST be Arabic.
-    4. Set the 'detectedLanguage' field in the JSON response to the ISO code (e.g., 'ar', 'en').
+    ${languageInstruction}
 
-    **STYLE & FORMATTING (Make it Colorful & Student-Friendly):**
-    - **Tone:** Use the same style as the book but simplify complex sentences for a student.
-    - **Formatting:** 
-      - Use **H2 (##)** and **H3 (###)** for colorful headers.
-      - Use **Blockquotes (>)** for Definitions, Important Rules, and Notes (This triggers colorful boxes).
-      - Use **Tables** for comparisons (This triggers colorful rows).
-      - Use **Bold** for key terms.
-      - Use **Emojis** liberally to make sections visually distinct and engaging.
-    - **Answers:** If the input text contains questions or exercises, YOU MUST solve them and include them in the 'qa' section or within the summary.
+    **STYLE & TONE:**
+    - Adapt your tone to match the book's style (e.g., formal vs. simple).
+    - HOWEVER, ensure the explanation is **easy for a student to understand**. Simplify complex jargon while keeping core meaning.
+    
+    **SOLVE EVERYTHING:** 
+    If the input text contains questions, exercises, or unfinished examples, **YOU MUST SOLVE THEM** and include the answers in the summary or QA section.
+
+    **FORMATTING (COLORFUL & ORGANIZED):**
+    The frontend uses specific Markdown syntax to render colorful boxes. Use them strictly:
+    - **Headers:** Use \`##\` for main sections and \`###\` for subsections. Add relevant Emojis to headers.
+    - **Important Notes / Definitions:** Wrap them in Blockquotes \`> \`. These will appear in **colorful amber boxes**.
+    - **Questions/Examples:** When presenting a question or an example from the book, format it clearly, then provide the solution/explanation immediately after.
+    - **Comparisons:** ALWAYS use Markdown Tables for comparisons. These render with **colorful headers**.
+    - **Bold:** Use \`**text**\` for keywords.
 
     **YOUR TASK:** Analyze the content and generate a structured study JSON containing:
     1. **overview**: A powerful executive summary / introduction.
@@ -118,7 +139,7 @@ export const analyzeText = async (
        - **Mnemonics:** If there are hard lists, invent a creative Mnemonic (abbreviation/rhyme) to help memory.
        - **Real-World Application:** At the end of major sections, add a paragraph titled "Why this matters?" explaining the practical use of this concept.
        - **Mermaid:** Use \`mermaid\` code blocks for diagrams (Flowcharts, Mindmaps). WRAP NODE TEXT IN QUOTES.
-    3. **qa**: A list of review questions and answers (Markdown format). Include solved questions from the book if found.
+    3. **qa**: A list of review questions and answers (Markdown format). **Include solved questions from the book if found.**
     4. **flashcards**: An array of objects {term, definition} for the 10 most important terms.
     5. **quiz**: An array of objects {question, options[], correctAnswer, explanation} for 5 multiple-choice questions.
 
@@ -128,7 +149,7 @@ export const analyzeText = async (
     
     **MATH/SCIENCE RULES:**
     - Use LaTeX for formulas (e.g. $x^2$).
-    - Use clear step-by-step logic.
+    - Use clear step-by-step logic for solving problems found in the text.
   `;
 
   const userContentParts: any[] = [{ text: systemPrompt }];
@@ -140,7 +161,7 @@ export const analyzeText = async (
         data: content.image.data
       }
     });
-    userContentParts.push({ text: "Analyze this slide/image. Extract text and diagrams." });
+    userContentParts.push({ text: "Analyze this slide/image. Extract text, diagrams, and solve any visible questions." });
   }
   
   if (content.text) {
@@ -228,7 +249,8 @@ export const explainConcept = async (
     You are an Expert Tutor.
     **Task:** Deep Dive into: "${term}".
     **Context:** ${context.substring(0, 50000)}
-    **Language:** DETECT and match the language of the Context.
+    
+    **CRITICAL:** Detect the language of the "Context" and "Term". **Generate the explanation in that SAME language.**
 
     **Instructions:**
     1. ${complexityPrompt}
