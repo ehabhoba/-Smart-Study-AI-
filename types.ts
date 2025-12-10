@@ -21,6 +21,7 @@ export interface StudyAnalysisResult {
   flashcards?: Flashcard[]; // New: Structured Flashcards
   quiz?: QuizItem[];        // New: Structured Interactive Quiz
   extractedImages?: string[]; // Array of Base64 image strings extracted from the file
+  detectedLanguage?: string; // The language detected from the source file (e.g., 'ar', 'en')
 }
 
 export enum SummaryType {

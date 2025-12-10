@@ -101,7 +101,7 @@ const MermaidChart = ({ chart, onInteract }: { chart: string, onInteract?: (term
 };
 
 // --- FLASHCARD COMPONENT ---
-const FlashcardDeck = ({ flashcards }: { flashcards: any[] }) => {
+const FlashcardDeck = ({ flashcards, isRtl }: { flashcards: any[], isRtl: boolean }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isFlipped, setIsFlipped] = useState(false);
 
@@ -122,9 +122,9 @@ const FlashcardDeck = ({ flashcards }: { flashcards: any[] }) => {
     const card = flashcards[currentIndex];
 
     return (
-        <div className="flex flex-col items-center justify-center py-10">
+        <div className="flex flex-col items-center justify-center py-10" dir={isRtl ? 'rtl' : 'ltr'}>
             <div className="mb-4 text-sm text-gray-500 font-bold bg-gray-100 px-3 py-1 rounded-full">
-                بطاقة {currentIndex + 1} من {flashcards.length}
+                {isRtl ? `بطاقة ${currentIndex + 1} من ${flashcards.length}` : `Card ${currentIndex + 1} of ${flashcards.length}`}
             </div>
 
             <div 
@@ -135,7 +135,7 @@ const FlashcardDeck = ({ flashcards }: { flashcards: any[] }) => {
                     {/* Front */}
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-800 text-white rounded-2xl shadow-xl flex flex-col items-center justify-center p-8 backface-hidden">
                         <h3 className="text-2xl font-bold text-center">{card.term}</h3>
-                        <p className="mt-4 text-blue-200 text-sm">اضغط لإظهار التعريف</p>
+                        <p className="mt-4 text-blue-200 text-sm">{isRtl ? 'اضغط لإظهار التعريف' : 'Click to flip'}</p>
                     </div>
                     
                     {/* Back */}
@@ -147,10 +147,10 @@ const FlashcardDeck = ({ flashcards }: { flashcards: any[] }) => {
 
             <div className="flex gap-4 mt-8">
                 <button onClick={handlePrev} className="px-6 py-2 bg-white border border-gray-300 rounded-full hover:bg-gray-50 font-bold text-gray-700 shadow-sm">
-                    السابق
+                    {isRtl ? 'السابق' : 'Prev'}
                 </button>
                 <button onClick={handleNext} className="px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 font-bold shadow-md">
-                    التالي
+                    {isRtl ? 'التالي' : 'Next'}
                 </button>
             </div>
         </div>
@@ -158,7 +158,7 @@ const FlashcardDeck = ({ flashcards }: { flashcards: any[] }) => {
 };
 
 // --- QUIZ COMPONENT ---
-const InteractiveQuiz = ({ quiz }: { quiz: any[] }) => {
+const InteractiveQuiz = ({ quiz, isRtl }: { quiz: any[], isRtl: boolean }) => {
     const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
     const [showResults, setShowResults] = useState(false);
 
@@ -185,13 +185,13 @@ const InteractiveQuiz = ({ quiz }: { quiz: any[] }) => {
     };
 
     return (
-        <div className="max-w-3xl mx-auto py-6">
+        <div className="max-w-3xl mx-auto py-6" dir={isRtl ? 'rtl' : 'ltr'}>
             {!showResults ? (
                 <div className="space-y-8">
                     {quiz.map((q, i) => (
                         <div key={i} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                             <h3 className="text-lg font-bold text-gray-900 mb-4 flex gap-2">
-                                <span className="bg-blue-100 text-blue-800 w-8 h-8 flex items-center justify-center rounded-full text-sm">{i + 1}</span>
+                                <span className="bg-blue-100 text-blue-800 w-8 h-8 flex items-center justify-center rounded-full text-sm shrink-0">{i + 1}</span>
                                 {q.question}
                             </h3>
                             <div className="space-y-2">
@@ -199,7 +199,7 @@ const InteractiveQuiz = ({ quiz }: { quiz: any[] }) => {
                                     <button
                                         key={idx}
                                         onClick={() => handleSelect(i, opt)}
-                                        className={`w-full text-right p-3 rounded-lg border transition-all ${
+                                        className={`w-full text-start p-3 rounded-lg border transition-all ${
                                             userAnswers[i] === opt 
                                             ? 'bg-blue-50 border-blue-500 text-blue-800 font-bold shadow-inner' 
                                             : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300'
@@ -216,21 +216,21 @@ const InteractiveQuiz = ({ quiz }: { quiz: any[] }) => {
                         disabled={Object.keys(userAnswers).length < quiz.length}
                         className="w-full py-4 bg-green-600 text-white rounded-xl font-bold text-lg hover:bg-green-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
                     >
-                        تسليم الإجابات وعرض النتيجة
+                        {isRtl ? 'تسليم الإجابات وعرض النتيجة' : 'Submit Answers'}
                     </button>
                 </div>
             ) : (
                 <div className="animate-in zoom-in duration-300">
                     <div className="text-center mb-10 bg-gradient-to-br from-indigo-600 to-purple-700 text-white p-10 rounded-2xl shadow-xl">
                         <Trophy size={48} className="mx-auto text-yellow-300 mb-4" />
-                        <h2 className="text-3xl font-bold mb-2">النتيجة النهائية</h2>
+                        <h2 className="text-3xl font-bold mb-2">{isRtl ? 'النتيجة النهائية' : 'Final Score'}</h2>
                         <div className="text-6xl font-extrabold mb-2">{calculateScore()} <span className="text-2xl text-indigo-200">/ {quiz.length}</span></div>
                         <p className="text-indigo-100">
-                            {calculateScore() === quiz.length ? "ممتاز! أنت عبقري 🌟" : 
-                             calculateScore() > quiz.length / 2 ? "جيد جداً! استمر في المحاولة 👍" : "تحتاج للمزيد من المذاكرة 📚"}
+                            {calculateScore() === quiz.length ? (isRtl ? "ممتاز! أنت عبقري 🌟" : "Perfect! You are a genius 🌟") : 
+                             calculateScore() > quiz.length / 2 ? (isRtl ? "جيد جداً! استمر في المحاولة 👍" : "Great job! Keep trying 👍") : (isRtl ? "تحتاج للمزيد من المذاكرة 📚" : "Needs more study 📚")}
                         </p>
                         <button onClick={resetQuiz} className="mt-6 px-6 py-2 bg-white/20 hover:bg-white/30 rounded-full font-bold flex items-center gap-2 mx-auto backdrop-blur-sm">
-                            <RefreshCw size={16} /> إعادة الاختبار
+                            <RefreshCw size={16} /> {isRtl ? 'إعادة الاختبار' : 'Retry Quiz'}
                         </button>
                     </div>
 
@@ -245,11 +245,11 @@ const InteractiveQuiz = ({ quiz }: { quiz: any[] }) => {
                                         </div>
                                         <div>
                                             <h3 className="font-bold text-gray-900 mb-2">{q.question}</h3>
-                                            <p className="text-sm text-gray-600 mb-1">إجابتك: <span className={isCorrect ? 'text-green-700 font-bold' : 'text-red-700 font-bold line-through'}>{userAnswers[i]}</span></p>
-                                            {!isCorrect && <p className="text-sm text-green-700 mb-2">الإجابة الصحيحة: <strong>{q.correctAnswer}</strong></p>}
+                                            <p className="text-sm text-gray-600 mb-1">{isRtl ? 'إجابتك:' : 'Your Answer:'} <span className={isCorrect ? 'text-green-700 font-bold' : 'text-red-700 font-bold line-through'}>{userAnswers[i]}</span></p>
+                                            {!isCorrect && <p className="text-sm text-green-700 mb-2">{isRtl ? 'الإجابة الصحيحة:' : 'Correct Answer:'} <strong>{q.correctAnswer}</strong></p>}
                                             {q.explanation && (
                                                 <div className="mt-3 bg-white p-3 rounded border border-gray-200 text-sm text-gray-600">
-                                                    <strong>💡 الشرح:</strong> {q.explanation}
+                                                    <strong>💡 {isRtl ? 'الشرح' : 'Explanation'}:</strong> {q.explanation}
                                                 </div>
                                             )}
                                         </div>
@@ -265,12 +265,20 @@ const InteractiveQuiz = ({ quiz }: { quiz: any[] }) => {
 };
 
 // --- COLLAPSIBLE SECTION COMPONENT ---
-const CollapsibleSection = ({ title, isOpen, onToggle, children }: { title: string, isOpen: boolean, onToggle: () => void, children: React.ReactNode }) => {
+interface CollapsibleSectionProps {
+  title: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+  isRtl: boolean;
+}
+
+const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, isOpen, onToggle, children, isRtl }) => {
     return (
         <div className="border border-gray-200 rounded-xl mb-4 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <button 
                 onClick={onToggle}
-                className={`w-full flex items-center justify-between p-4 text-right transition-colors ${isOpen ? 'bg-blue-50 text-blue-900' : 'bg-white text-gray-800 hover:bg-gray-50'}`}
+                className={`w-full flex items-center justify-between p-4 ${isRtl ? 'text-right' : 'text-left'} transition-colors ${isOpen ? 'bg-blue-50 text-blue-900' : 'bg-white text-gray-800 hover:bg-gray-50'}`}
             >
                 <div className="flex items-center gap-3">
                     <span className={`p-1 rounded-full ${isOpen ? 'bg-blue-200' : 'bg-gray-100'}`}>
@@ -318,7 +326,7 @@ const LazyRenderList = ({ items, renderItem }: { items: any[], renderItem: (item
             {visibleCount < items.length && (
                 <div ref={observerTarget} className="h-20 flex items-center justify-center p-4">
                     <Loader2 className="animate-spin text-blue-500" />
-                    <span className="text-gray-500 text-sm mr-2">جاري تحميل المزيد...</span>
+                    <span className="text-gray-500 text-sm mr-2">...</span>
                 </div>
             )}
         </div>
@@ -345,6 +353,11 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
   const stopPlaybackRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // Detect direction from API result or default to RTL (Arabic) if not specified
+  const detectedLang = result.detectedLanguage?.toLowerCase() || 'ar';
+  const isRtl = detectedLang === 'ar' || detectedLang.startsWith('ar');
+  const direction = isRtl ? 'rtl' : 'ltr';
+
   // Parsed sections state
   const [summarySections, setSummarySections] = useState<{title: string, content: string, isOpen: boolean}[]>([]);
   const [qaSections, setQaSections] = useState<{title: string, content: string, isOpen: boolean}[]>([]);
@@ -356,7 +369,7 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
         const parts = result.summary.split(/(?=^## )/gm);
         const sections = parts.map(part => {
             const titleMatch = part.match(/^## (.*)$/m);
-            const title = titleMatch ? titleMatch[1].replace(/\*\*/g, '').trim() : 'مقدمة / ملخص عام';
+            const title = titleMatch ? titleMatch[1].replace(/\*\*/g, '').trim() : (isRtl ? 'مقدمة / ملخص عام' : 'Introduction');
             const content = part.replace(/^## .*$/m, '').trim(); // Remove the header from content body
             return { title, content, isOpen: false };
         }).filter(s => s.content.trim().length > 0);
@@ -371,7 +384,7 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
         const parts = result.qa.split(/(?=^### )/gm);
         const sections = parts.map(part => {
              const titleMatch = part.match(/^### (.*)$/m);
-             const title = titleMatch ? titleMatch[1].replace(/\*\*/g, '').trim() : 'سؤال';
+             const title = titleMatch ? titleMatch[1].replace(/\*\*/g, '').trim() : (isRtl ? 'سؤال' : 'Question');
              const content = part.replace(/^### .*$/m, '').trim();
              return { title, content, isOpen: false };
         }).filter(s => s.content.trim().length > 0);
@@ -381,7 +394,7 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
          }
         setQaSections(sections);
     }
-  }, [result]);
+  }, [result, isRtl]);
 
   useEffect(() => {
     if (highlightedText && contentRef.current) {
@@ -503,7 +516,7 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
   // --- PRINT MODE ---
   if (isPrinting) {
     return (
-        <div className="fixed inset-0 bg-white z-[100] overflow-auto">
+        <div className="fixed inset-0 bg-white z-[100] overflow-auto" dir={direction}>
             <div className="max-w-4xl mx-auto p-8">
                  <h1 className="text-4xl font-bold text-center mb-10">{result.fileName || 'ملخص دراسي'}</h1>
                  <div className="markdown-body font-[Arial,sans-serif]"><MarkdownRenderer content={result.summary} /></div>
@@ -526,25 +539,32 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
   );
 
   return (
-    <div className="animate-fade-in-up">
+    <div className="animate-fade-in-up" dir={direction}>
+       {detectedLang !== 'ar' && (
+           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 mb-4 rounded-lg text-sm flex items-center gap-2">
+               <Info size={16} />
+               Detected Language: {detectedLang.toUpperCase()}. The content is displayed in {detectedLang === 'ar' ? 'Arabic' : 'the source language'}.
+           </div>
+       )}
+
        <div className="flex bg-white rounded-t-xl overflow-x-auto border border-b-0 border-gray-200 shadow-sm no-print">
-         <TabButton id="summary" label="الملخص والشرح" icon={FileText} />
-         <TabButton id="flashcards" label="بطاقات الحفظ" icon={Layers} />
-         <TabButton id="quiz" label="اختبار تفاعلي" icon={BrainCircuit} />
-         <TabButton id="qa" label="بنك الأسئلة" icon={FileQuestion} />
-         <TabButton id="figures" label="الأشكال" icon={ImageIcon} />
+         <TabButton id="summary" label={isRtl ? "الملخص والشرح" : "Summary"} icon={FileText} />
+         <TabButton id="flashcards" label={isRtl ? "بطاقات الحفظ" : "Flashcards"} icon={Layers} />
+         <TabButton id="quiz" label={isRtl ? "اختبار تفاعلي" : "Quiz"} icon={BrainCircuit} />
+         <TabButton id="qa" label={isRtl ? "بنك الأسئلة" : "Q&A Bank"} icon={FileQuestion} />
+         <TabButton id="figures" label={isRtl ? "الأشكال" : "Images"} icon={ImageIcon} />
        </div>
 
        {/* Toolbar */}
        <div className="bg-gray-50 p-2 border border-gray-200 flex flex-wrap gap-2 justify-between items-center no-print">
          <div className="flex gap-2">
-            <button onClick={() => navigator.clipboard.writeText(result.summary)} className="btn-icon bg-white" title="نسخ"><Copy size={16} /></button>
-            <button onClick={handleExportPdf} className="btn-icon bg-white text-red-600" title="طباعة PDF"><Printer size={16} /></button>
+            <button onClick={() => navigator.clipboard.writeText(result.summary)} className="btn-icon bg-white" title={isRtl ? "نسخ" : "Copy"}><Copy size={16} /></button>
+            <button onClick={handleExportPdf} className="btn-icon bg-white text-red-600" title={isRtl ? "طباعة PDF" : "Print PDF"}><Printer size={16} /></button>
          </div>
          
          <div className="flex gap-2 items-center">
              <button onClick={() => onOpenDeepDive()} className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded text-sm font-bold flex items-center gap-2">
-               <Search size={16} /> اشرح لي
+               <Search size={16} /> {isRtl ? "اشرح لي" : "Explain"}
              </button>
              {activeTab === 'summary' && (
                  <button onClick={handleReadAloud} className={`px-3 py-1.5 rounded text-sm font-bold text-white flex gap-2 ${audioState === 'playing' ? 'bg-red-500' : 'bg-blue-600'}`}>
@@ -564,10 +584,10 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
                       <>
                         <div className="flex justify-end gap-2 mb-4 text-xs">
                              <button onClick={() => handleBulkToggle(true, 'summary')} className="flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded">
-                                 <ChevronsDown size={14}/> توسيع الكل
+                                 <ChevronsDown size={14}/> {isRtl ? "توسيع الكل" : "Expand All"}
                              </button>
                              <button onClick={() => handleBulkToggle(false, 'summary')} className="flex items-center gap-1 text-gray-600 hover:bg-gray-50 px-2 py-1 rounded">
-                                 <ChevronsUp size={14}/> طي الكل
+                                 <ChevronsUp size={14}/> {isRtl ? "طي الكل" : "Collapse All"}
                              </button>
                         </div>
                         <LazyRenderList 
@@ -578,6 +598,7 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
                                     title={section.title} 
                                     isOpen={section.isOpen} 
                                     onToggle={() => handleToggleSection(index, 'summary')}
+                                    isRtl={isRtl}
                                 >
                                     <div className="markdown-body">
                                         <MarkdownRenderer content={getRenderContent(section.content)} />
@@ -593,9 +614,9 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
               </div>
           )}
           
-          {activeTab === 'flashcards' && <FlashcardDeck flashcards={result.flashcards || []} />}
+          {activeTab === 'flashcards' && <FlashcardDeck flashcards={result.flashcards || []} isRtl={isRtl} />}
           
-          {activeTab === 'quiz' && <InteractiveQuiz quiz={result.quiz || []} />}
+          {activeTab === 'quiz' && <InteractiveQuiz quiz={result.quiz || []} isRtl={isRtl} />}
           
           {/* Q&A TAB: Collapsible Sections */}
           {activeTab === 'qa' && (
@@ -604,10 +625,10 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
                       <>
                         <div className="flex justify-end gap-2 mb-4 text-xs">
                              <button onClick={() => handleBulkToggle(true, 'qa')} className="flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded">
-                                 <ChevronsDown size={14}/> توسيع الكل
+                                 <ChevronsDown size={14}/> {isRtl ? "توسيع الكل" : "Expand All"}
                              </button>
                              <button onClick={() => handleBulkToggle(false, 'qa')} className="flex items-center gap-1 text-gray-600 hover:bg-gray-50 px-2 py-1 rounded">
-                                 <ChevronsUp size={14}/> طي الكل
+                                 <ChevronsUp size={14}/> {isRtl ? "طي الكل" : "Collapse All"}
                              </button>
                         </div>
                         <LazyRenderList 
@@ -618,6 +639,7 @@ export const ResultsDisplay: React.FC<Props> = ({ result, apiKey, onOpenDeepDive
                                     title={section.title} 
                                     isOpen={section.isOpen} 
                                     onToggle={() => handleToggleSection(index, 'qa')}
+                                    isRtl={isRtl}
                                 >
                                     <div className="markdown-body">
                                         <MarkdownRenderer content={section.content} />

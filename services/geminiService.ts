@@ -91,7 +91,23 @@ export const analyzeText = async (
   const systemPrompt = `
     ${promptRole}
     
-    **CORE DIRECTIVE:** Detect the input language (e.g., Arabic). **ALL OUTPUT MUST BE IN THAT SAME LANGUAGE.**
+    **CRITICAL INSTRUCTION: LANGUAGE DETECTION**
+    1. Read the input text/images.
+    2. DETECT the dominant language (e.g., Arabic, English, French, etc.).
+    3. **GENERATE ALL OUTPUT IN THAT EXACT DETECTED LANGUAGE.** 
+       - If the book is English, the summary MUST be English.
+       - If the book is Arabic, the summary MUST be Arabic.
+    4. Set the 'detectedLanguage' field in the JSON response to the ISO code (e.g., 'ar', 'en').
+
+    **STYLE & FORMATTING (Make it Colorful & Student-Friendly):**
+    - **Tone:** Use the same style as the book but simplify complex sentences for a student.
+    - **Formatting:** 
+      - Use **H2 (##)** and **H3 (###)** for colorful headers.
+      - Use **Blockquotes (>)** for Definitions, Important Rules, and Notes (This triggers colorful boxes).
+      - Use **Tables** for comparisons (This triggers colorful rows).
+      - Use **Bold** for key terms.
+      - Use **Emojis** liberally to make sections visually distinct and engaging.
+    - **Answers:** If the input text contains questions or exercises, YOU MUST solve them and include them in the 'qa' section or within the summary.
 
     **YOUR TASK:** Analyze the content and generate a structured study JSON containing:
     1. **overview**: A powerful executive summary / introduction.
@@ -102,7 +118,7 @@ export const analyzeText = async (
        - **Mnemonics:** If there are hard lists, invent a creative Mnemonic (abbreviation/rhyme) to help memory.
        - **Real-World Application:** At the end of major sections, add a paragraph titled "Why this matters?" explaining the practical use of this concept.
        - **Mermaid:** Use \`mermaid\` code blocks for diagrams (Flowcharts, Mindmaps). WRAP NODE TEXT IN QUOTES.
-    3. **qa**: A list of review questions and answers (Markdown format).
+    3. **qa**: A list of review questions and answers (Markdown format). Include solved questions from the book if found.
     4. **flashcards**: An array of objects {term, definition} for the 10 most important terms.
     5. **quiz**: An array of objects {question, options[], correctAnswer, explanation} for 5 multiple-choice questions.
 
@@ -141,6 +157,7 @@ export const analyzeText = async (
       responseSchema: {
         type: Type.OBJECT,
         properties: {
+          detectedLanguage: { type: Type.STRING, description: "ISO code of the detected language (e.g. 'ar', 'en')" },
           overview: { type: Type.STRING },
           summary: { type: Type.STRING },
           qa: { type: Type.STRING },
@@ -168,7 +185,7 @@ export const analyzeText = async (
             }
           }
         },
-        required: ["overview", "summary", "qa", "flashcards", "quiz"],
+        required: ["detectedLanguage", "overview", "summary", "qa", "flashcards", "quiz"],
       },
     },
   });
@@ -211,7 +228,7 @@ export const explainConcept = async (
     You are an Expert Tutor.
     **Task:** Deep Dive into: "${term}".
     **Context:** ${context.substring(0, 50000)}
-    **Language:** Same as Context.
+    **Language:** DETECT and match the language of the Context.
 
     **Instructions:**
     1. ${complexityPrompt}
